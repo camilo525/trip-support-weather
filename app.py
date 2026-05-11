@@ -73,7 +73,7 @@ st.markdown("""
 # --- ESPACIOS PARA TUS LOGOS ---
 # REEMPLAZA LOS LINKS ENTRE COMILLAS CON TUS ENLACES DIRECTOS (IMG BB O GITHUB)
 LOGO_UP_LEFT = "https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png" 
-LOGO_BOTTOM_CENTER = "https://ibb.co/b5bv4Rvv.jpg"
+LOGO_BOTTOM_CENTER = "https://www.argus.aero/solutions/certified-charter-broker-audit"
 
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
