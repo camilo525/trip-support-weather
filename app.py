@@ -42,9 +42,9 @@ with col_title: st.markdown('<div class="header-style">Flight Support Team | Tri
 # 3. SIDEBAR
 st.sidebar.title("Trip Details")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="").upper()
-etd = st.sidebar.text_input("ETD (UTC Internal)", value="1200")
+etd = st.sidebar.text_input("ETD (UTC Internal)", value="")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="").upper()
-eta = st.sidebar.text_input("ETA (UTC Internal)", value="1600")
+eta = st.sidebar.text_input("ETA (UTC Internal)", value="")
 fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
 tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
 
