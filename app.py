@@ -28,18 +28,19 @@ st.markdown("""
 
     /* TOOLKIT BUTTONS DESIGN */
     .tool-container {
-        display: flex; gap: 15px; margin-top: 25px; margin-bottom: 25px; flex-wrap: wrap;
+        display: flex; gap: 12px; margin-top: 10px; margin-bottom: 25px; flex-wrap: wrap;
     }
     .tool-btn {
-        flex: 1; min-width: 200px; padding: 15px; border-radius: 12px;
-        text-align: center; text-decoration: none; font-weight: bold; font-size: 0.9em;
+        flex: 1; min-width: 170px; padding: 12px; border-radius: 10px;
+        text-align: center; text-decoration: none; font-weight: bold; font-size: 0.8em;
         transition: 0.3s; border: 1px solid rgba(255,255,255,0.1);
     }
     .btn-sat { background: rgba(0, 212, 255, 0.1); color: #00d4ff !important; border-color: #00d4ff; }
     .btn-map { background: rgba(168, 85, 247, 0.1); color: #a855f7 !important; border-color: #a855f7; }
+    .btn-nas { background: rgba(0, 255, 127, 0.1); color: #00ff7f !important; border-color: #00ff7f; }
     .btn-notam { background: rgba(255, 204, 0, 0.1); color: #ffcc00 !important; border-color: #ffcc00; }
     
-    .tool-btn:hover { transform: translateY(-3px); background: rgba(255,255,255,0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    .tool-btn:hover { transform: translateY(-3px); background: rgba(255,255,255,0.1); }
 
     .executive-card { background: rgba(255,255,255,0.03); padding: 35px; border-radius: 20px; border-left: 6px solid #00d4ff; }
     .status-stable { color: #00ff00; font-weight: bold; }
@@ -99,57 +100,3 @@ def get_coords(wx):
         except: return None, None
 
 if st.button("Run Mission Assessment"):
-    wx_org = get_wx(origin, fase)
-    wx_dst = get_wx(destination, fase)
-
-    if wx_org and wx_dst:
-        o_lat, o_lon = get_coords(wx_org)
-        d_lat, d_lon = get_coords(wx_dst)
-        
-        if o_lat is not None and d_lat is not None:
-            fig = go.Figure()
-            fig.add_trace(go.Scattergeo(
-                lon = [o_lon, d_lon], lat = [o_lat, d_lat],
-                mode = 'lines+markers+text', text = [origin, destination],
-                textposition = "top center", line = dict(width = 3, color = '#00d4ff'),
-                marker = dict(size = 12, color = ['#00d4ff', '#a855f7'], symbol = 'diamond'),
-                textfont = dict(color = '#00d4ff', size = 14)
-            ))
-            fig.update_layout(
-                showlegend = False,
-                geo = dict(
-                    showland = True, landcolor = "#0a0a0a",
-                    showocean = True, oceancolor = "#000000",
-                    showlakes = True, lakecolor = "#002b4d",
-                    showcountries = True, countrycolor = "#888888",
-                    showsubunits = True, subunitcolor = "#005fcc",
-                    resolution = 50, projection_type = 'equirectangular',
-                    bgcolor = "rgba(0,0,0,0)"
-                ),
-                margin = dict(l=0, r=0, t=0, b=0), height = 450, paper_bgcolor = "rgba(0,0,0,0)"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        if tipo_reporte == "Executive (Client)":
-            st.markdown(f'<div class="executive-card"><h2 style="color:#00d4ff;">Flight Briefing: {origin} ➔ {destination}</h2><p><b>Departure:</b> {generate_client_text(wx_org, origin, "dep")}</p><p><b>Arrival:</b> {generate_client_text(wx_dst, destination, "arr")}</p></div>', unsafe_allow_html=True)
-        else:
-            # --- TECHNICAL TOOLKIT ---
-            st.markdown("### 🛠 Dispatcher Toolkit")
-            st.markdown(f"""
-                <div class="tool-container">
-                    <a href="https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G16&band=11&length=24" target="_blank" class="tool-btn btn-sat">🛰 LIVE SATELLITE (GOES-16)</a>
-                    <a href="https://www.weather.gov/forecastmaps/" target="_blank" class="tool-btn btn-map">🗺 NWS FORECAST MAPS</a>
-                    <a href="https://notams.aim.faa.gov/notamSearch/" target="_blank" class="tool-btn btn-notam">🔎 FAA NOTAM SEARCH</a>
-                </div>
-            """, unsafe_allow_html=True)
-
-            c1, c2 = st.columns(2)
-            for col, wx, icao, time, color, css in zip([c1, c2], [wx_org, wx_dst], [origin, destination], [etd, eta], ["#00d4ff", "#a855f7"], ["tech-card-origin", "tech-card-dest"]):
-                with col:
-                    vis = wx.get("visibility", {}).get("miles_float", 10)
-                    is_crit = any(x in wx.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis < 3
-                    status = '<span class="status-alert">🔴 Alert</span>' if is_crit else '<span class="status-stable">🟢 Stable</span>'
-                    st.markdown(f'<div class="{css}"><h4 style="color:{color};">{icao} @ {time}Z</h4><p class="raw-code">{wx["raw_text"]}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis} SM | <b>Status:</b> {status}</p></div>', unsafe_allow_html=True)
-    else: st.error("ICAO not found. Check codes.")
-
-st.markdown(f'<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="180"><p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p><p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime("%H:%M")}Z</p></div>', unsafe_allow_html=True)
