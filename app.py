@@ -34,7 +34,7 @@ with col_title: st.title("Flight Support Team Weather Tool")
 st.markdown("---")
 
 # 3. SIDEBAR
-st.sidebar.title("✈️ FST Dispatcher")
+st.sidebar.title("Trip Details")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 etd = st.sidebar.text_input("ETD (UTC)", value="1200")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
