@@ -50,4 +50,90 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
-with col_logo: st.image(LOGO_UP
+with col_logo: 
+    st.image(LOGO_UP_LEFT, width=300)
+with col_title: 
+    st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
+
+# 3. SIDEBAR
+st.sidebar.title("Trip Details")
+origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
+etd = st.sidebar.text_input("ETD (UTC Internal)", value="1200")
+destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
+eta = st.sidebar.text_input("ETA (UTC Internal)", value="1600")
+fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
+tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
+
+def get_wx(icao, phase):
+    stype = "metar" if phase == "Flight Day (Live)" else "taf"
+    url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
+    headers = {"X-API-Key": API_KEY}
+    try:
+        r = requests.get(url, headers=headers)
+        data = r.json()
+        return data["data"][0] if data.get("results", 0) > 0 else None
+    except: return None
+
+def generate_client_text(wx, icao, type="dep"):
+    raw = wx.get("raw_text", "").upper()
+    vis = wx.get("visibility", {}).get("miles_float", 10)
+    is_critical = any(x in raw for x in ["TS", "SN", "FG", "DZ", "RA", "SQ"]) or vis < 3
+    if type == "dep":
+        if is_critical: return f"Our latest meteorological assessment for your departure at {icao} shows active weather systems in the vicinity. To prioritize your safety and ensure a smooth operation, we are evaluating the most efficient departure window for your day of travel."
+        else: return f"Current weather analysis for your departure at {icao} indicates ideal flying conditions. We anticipate an on-time departure as scheduled for your day of travel."
+    else:
+        if is_critical: return f"The terminal forecast for your arrival at {icao} currently indicates weather activity near your arrival time. Our Dispatch Team is already working on optimized routing."
+        else: return f"The terminal forecast for your arrival at {icao} remains favorable. Our team confirms clear skies for your day of arrival."
+
+def draw_route_map(o_lat, o_lon, d_lat, d_lon):
+    fig = go.Figure(go.Scattergeo(
+        lon = [o_lon, d_lon], lat = [o_lat, d_lat],
+        mode = 'markers+lines',
+        line = dict(width = 2, color = '#00d4ff'),
+        marker = dict(size = 8, color = ['#00d4ff', '#a855f7']),
+        text = [origin, destination]
+    ))
+    fig.update_layout(
+        geo = dict(
+            scope='world', projection_type='orthographic', 
+            showland=True, landcolor="#111", bgcolor="rgba(0,0,0,0)", 
+            showocean=True, oceancolor="#050505", lakecolor="#050505"
+        ),
+        margin=dict(l=0,r=0,t=0,b=0), height=350, paper_bgcolor="rgba(0,0,0,0)"
+    )
+    return fig
+
+# 5. BOTÓN Y LÓGICA
+if st.button("Run Mission Assessment"):
+    wx_org = get_wx(origin, fase)
+    wx_dst = get_wx(destination, fase)
+
+    if wx_org and wx_dst:
+        # --- SECCIÓN DEL MAPA ---
+        try:
+            o_lat = wx_org['station']['geometry']['coordinates'][1]
+            o_lon = wx_org['station']['geometry']['coordinates'][0]
+            d_lat = wx_dst['station']['geometry']['coordinates'][1]
+            d_lon = wx_dst['station']['geometry']['coordinates'][0]
+            st.plotly_chart(draw_route_map(o_lat, o_lon, d_lat, d_lon), use_container_width=True)
+        except:
+            st.warning("Map coordinates unavailable for this route.")
+
+        # --- SECCIÓN DE REPORTES ---
+        if tipo_reporte == "Executive (Client)":
+            st.markdown(f"""
+            <div class="executive-card">
+                <h2 style="color:#00d4ff; margin-top:0;">Flight Briefing: {origin} ➔ {destination}</h2>
+                <p><b>Departure:</b> {generate_client_text(wx_org, origin, "dep")}</p>
+                <p><b>Arrival:</b> {generate_client_text(wx_dst, destination, "arr")}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("### 🛠 Internal Support Intelligence")
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                vis_o = wx_org.get("visibility", {}).get("miles_float", 10)
+                is_crit_o = any(x in wx_org.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis_o < 3
+                status_o = '<span class="status-alert">🔴 Alert</span>' if is_crit_o else '<span class="status-stable">🟢 Stable</span>'
+                st.markdown(f"""<div class="tech-card-origin"><h4 style="color:#00d4ff;">{origin} @ {etd}Z</h4><p class="raw-code">{wx_org.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:
