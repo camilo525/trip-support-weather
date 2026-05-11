@@ -84,22 +84,22 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-LOGO_UP_LEFT = "https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png" 
+LOGO_UP_LEFT = "https://ibb.co/XkrRXFhZ.png" 
 LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
-with col_logo: st.image(LOGO_UP_LEFT, width=200)
-with col_title: st.markdown('<div class="header-style">Flight Support Team Weather Tool</div>', unsafe_allow_html=True)
+with col_logo: st.image(LOGO_UP_LEFT, width=100)
+with col_title: st.markdown('<div class="header-style">Operations Team </div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
-st.sidebar.title("Flight Info")
+st.sidebar.title("Thrust Aviation Trip")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 etd = st.sidebar.text_input("ETD (UTC)", value="1200")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
 eta = st.sidebar.text_input("ETA (UTC)", value="1600")
-fase = st.sidebar.selectbox("TIMELINE", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
+fase = st.sidebar.selectbox("Type of Assessment", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
 tipo_reporte = st.sidebar.radio("MODE", ["Executive (Client)", "Technical (Internal)"])
 
 def get_wx(icao, phase):
