@@ -3,10 +3,10 @@ import requests
 import plotly.graph_objects as go
 from datetime import datetime
 
-# 1. CONFIGURACIÓN DE PÁGINA
+# 1. PAGE CONFIGURATION
 st.set_page_config(page_title="Flight Support Team Weather Tool", page_icon="✈️", layout="wide")
 
-# --- DISEÑO ---
+# --- PRO DESIGN: NEON & CONTRAST ---
 st.markdown("""
     <style>
     .stApp { background-color: #000000 !important; color: #FFFFFF !important; }
@@ -35,12 +35,11 @@ LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon
 LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
-# 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
 with col_logo: st.image(LOGO_UP_LEFT, width=300)
 with col_title: st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
 
-# 3. SIDEBAR
+# 3. SIDEBAR (ALL ENGLISH)
 st.sidebar.title("Trip Details")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 etd = st.sidebar.text_input("ETD (UTC Internal)", value="1200")
@@ -56,35 +55,47 @@ def get_wx(icao, phase):
     try:
         r = requests.get(url, headers=headers)
         data = r.json()
-        return data["data"][0] if data.get("results", 0) > 0 else None
+        if data.get("results", 0) > 0:
+            return data["data"][0]
+        return None
     except: return None
 
+# --- UPDATED ENGLISH CLIENT LOGIC ---
 def generate_client_text(wx, icao, type="dep"):
     raw = wx.get("raw_text", "").upper()
     vis = wx.get("visibility", {}).get("miles_float", 10)
     is_critical = any(x in raw for x in ["TS", "SN", "FG", "DZ", "RA", "SQ"]) or vis < 3
+    
     if type == "dep":
         if is_critical:
-            return f"El equipo de operaciones analiza las condiciones para su salida de {icao} y estamos reportando si hay issues. Evaluamos la ventana más eficiente para su día de viaje."
+            return f"The Operations Team is currently analyzing weather conditions for your departure from {icao} and we are reporting if there are any issues. We are evaluating the most efficient window for your day of travel."
         else:
-            return f"Análisis meteorológico para su salida de {icao} indica condiciones ideales. El equipo de operaciones analiza las condiciones y confirma un proceso sin inconvenientes."
+            return f"Meteorological analysis for your departure from {icao} indicates ideal conditions. The Operations Team is monitoring conditions and confirms a seamless process for your day of travel."
     else:
         if is_critical:
-            return f"El equipo de operaciones analiza las condiciones para su llegada a {icao} y estamos reportando si hay issues debido a la actividad meteorológica prevista."
+            return f"The Operations Team is currently analyzing weather conditions for your arrival at {icao} and we are reporting if there are any issues due to forecasted meteorological activity."
         else:
-            return f"El terminal forecast para su llegada a {icao} permanece favorable. El equipo de operaciones analiza las condiciones y estamos reportando una llegada confortable."
+            return f"The terminal forecast for your arrival at {icao} remains favorable. The Operations Team is monitoring conditions and we are reporting a comfortable arrival as scheduled."
 
-# 5. BOTÓN Y LÓGICA
+def get_coords(wx):
+    try:
+        return wx['station']['geometry']['coordinates'][1], wx['station']['geometry']['coordinates'][0]
+    except:
+        try:
+            return wx['geometry']['coordinates'][1], wx['geometry']['coordinates'][0]
+        except:
+            return None, None
+
 if st.button("Run Mission Assessment"):
     wx_org = get_wx(origin, fase)
     wx_dst = get_wx(destination, fase)
 
     if wx_org and wx_dst:
-        # --- MAPA CON MÁXIMO DETALLE ---
-        try:
-            o_lat, o_lon = wx_org['station']['geometry']['coordinates'][1], wx_org['station']['geometry']['coordinates'][0]
-            d_lat, d_lon = wx_dst['station']['geometry']['coordinates'][1], wx_dst['station']['geometry']['coordinates'][0]
-            
+        # --- DETAILED MAP ---
+        o_lat, o_lon = get_coords(wx_org)
+        d_lat, d_lon = get_coords(wx_dst)
+        
+        if o_lat and d_lat:
             fig = go.Figure(go.Scattergeo(
                 lon=[o_lon, d_lon], lat=[o_lat, d_lat], 
                 mode='lines+markers+text',
@@ -97,24 +108,26 @@ if st.button("Run Mission Assessment"):
             
             fig.update_layout(
                 geo=dict(
-                    projection_type='equirectangular', # Mapa plano para ver mejor los estados
+                    projection_type='equirectangular',
                     showcountries=True, countrycolor="#888",
-                    showsubunits=True, subunitcolor="#005fcc", # Estados en Azul para que se vean!
+                    showsubunits=True, subunitcolor="#005fcc", # BLUE STATE LINES
                     showland=True, landcolor="#050505",
                     showocean=True, oceancolor="#000000",
                     showlakes=True, lakecolor="#002b4d",
-                    showurbanareas=True, urbancolor="#1a1a1a", # Muestra áreas metropolitanas
+                    showurbanareas=True, urbancolor="#1a1a1a",
                     bgcolor="rgba(0,0,0,0)",
                     resolution=50 
                 ),
                 margin=dict(l=0,r=0,t=0,b=0), height=600, paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig, use_container_width=True)
-        except: st.warning("Map coordinates unavailable.")
+        else:
+            st.warning("⚠️ Map data currently unavailable for these coordinates.")
 
         if tipo_reporte == "Executive (Client)":
             st.markdown(f'<div class="executive-card"><h2 style="color:#00d4ff;">Flight Briefing: {origin} ➔ {destination}</h2><p><b>Departure:</b> {generate_client_text(wx_org, origin, "dep")}</p><p><b>Arrival:</b> {generate_client_text(wx_dst, destination, "arr")}</p></div>', unsafe_allow_html=True)
         else:
+            st.markdown("### 🛠 Internal Support Intelligence")
             c1, c2 = st.columns(2)
             for col, wx, icao, time, color, css in zip([c1, c2], [wx_org, wx_dst], [origin, destination], [etd, eta], ["#00d4ff", "#a855f7"], ["tech-card-origin", "tech-card-dest"]):
                 with col:
@@ -122,6 +135,6 @@ if st.button("Run Mission Assessment"):
                     is_crit = any(x in wx.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis < 3
                     status = '<span class="status-alert">🔴 Alert</span>' if is_crit else '<span class="status-stable">🟢 Stable</span>'
                     st.markdown(f'<div class="{css}"><h4 style="color:{color};">{icao} @ {time}Z</h4><p class="raw-code">{wx["raw_text"]}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis} SM | <b>Status:</b> {status}</p></div>', unsafe_allow_html=True)
-    else: st.error("ICAO not found.")
+    else: st.error("ICAO not found. Please verify the airport codes.")
 
 st.markdown(f'<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="180"><p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p><p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime("%H:%M")}Z</p></div>', unsafe_allow_html=True)
