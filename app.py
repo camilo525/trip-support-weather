@@ -152,7 +152,7 @@ st.markdown(f"""
     <div class="footer-container">
         {"<img src='" + LOGO_FOOTER + "' width='150'>" if LOGO_FOOTER != "TU_OTRO_LINK_AQUI" else ""}
         <p style="margin-top:20px; color:#555555; font-size: 0.9em; letter-spacing: 2px;">
-            FLIGHT SUPPORT TEAM | AI DIVISION<br>
+            Dir. Operations & Standards<br>
             UTC TIME: {datetime.utcnow().strftime('%H:%M')}Z
         </p>
     </div>
