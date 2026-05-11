@@ -67,10 +67,12 @@ def generate_client_text(wx, icao, is_departure=True):
 
 def get_coords(wx):
     try:
-        if 'station' in wx:
+        # Check standard station object first
+        if 'station' in wx and 'geometry' in wx['station']:
             return wx['station']['geometry']['coordinates'][1], wx['station']['geometry']['coordinates'][0]
+        # Check top level geometry
         return wx['geometry']['coordinates'][1], wx['geometry']['coordinates'][0]
-    except:
+    except Exception:
         return None, None
 
 # --- HEADER ---
@@ -87,12 +89,4 @@ with st.sidebar:
     etd = st.text_input("ETD (UTC Internal)", value="1200")
     destination = st.text_input("ARRIVAL ICAO", value="KMIA").upper()
     eta = st.text_input("ETA (UTC Internal)", value="1600")
-    fase = st.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
-    tipo_reporte = st.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
-
-# --- MAIN ---
-if st.button("Run Mission Assessment"):
-    wx_org, wx_dst = get_wx(origin, fase), get_wx(destination, fase)
-
-    if wx_org and wx_dst:
-        o_lat, o_lon
+    fase = st.selectbox("Assessment Window", ["Flight Day (Live)", "
