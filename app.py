@@ -85,7 +85,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 LOGO_UP_LEFT = "https://ibb.co/XkrRXFhZ.png" 
-LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
+LOGO_BOTTOM_CENTER = "<a href="https://ibb.co/XkrRXFhZ"><img src="https://i.ibb.co/G34S7CKv/Flight-Support-Zoom-Background-Rev2.png" alt="Flight-Support-Zoom-Background-Rev2" border="0"></a>"
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
