@@ -4,98 +4,97 @@ import requests
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="Flight Support Team Weather Tool", page_icon="✈️", layout="wide")
 
-# Estilo Corporativo Azul Aeronáutico
+# Diseño Corporativo
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
     .stButton>button { background-color: #002e5d; color: white; font-weight: bold; width: 100%; border-radius: 8px; height: 3em; }
-    .client-box { padding: 20px; border-radius: 10px; background-color: #e3f2fd; border-left: 5px solid #1976d2; color: #0d47a1; }
-    .tech-box { padding: 20px; border-radius: 10px; background-color: #fff3e0; border-left: 5px solid #ef6c00; color: #e65100; }
-    .alert-box { padding: 15px; border-radius: 8px; background-color: #ffebee; border: 1px solid #c62828; color: #c62828; font-weight: bold; margin-bottom: 15px; }
+    .client-box { padding: 25px; border-radius: 12px; background-color: #ffffff; border: 1px solid #e0e0e0; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); color: #1a1a1a; }
+    .tech-box { padding: 20px; border-radius: 10px; background-color: #263238; color: #eceff1; font-family: monospace; }
+    .alert-card { padding: 10px; border-radius: 5px; background-color: #ffcdd2; color: #b71c1c; font-weight: bold; margin-bottom: 5px; border-left: 5px solid #b71c1c; }
     </style>
     """, unsafe_allow_html=True)
 
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
-# 2. SIDEBAR - CONTROL DE MANDOS
-st.sidebar.image("https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png", width=100)
-st.sidebar.title("FST Weather Tool")
-icao = st.sidebar.text_input("ICAO AIRPORT CODE", value="KTEB").upper()
-fase = st.sidebar.selectbox("TIMELINE PHASE", ["48h Outlook (Trends)", "24h Before (TAF)", "Flight Day (METAR)"])
-tipo_reporte = st.sidebar.radio("REPORT TYPE", ["Executive (Client)", "Technical (Internal Team)"])
+# 2. SIDEBAR - TRIP INFO
+st.sidebar.title("FST Trip Manager")
+origin = st.sidebar.text_input("ORIGIN ICAO", value="KTEB").upper()
+destination = st.sidebar.text_input("DESTINATION ICAO", value="KMIA").upper()
+fase = st.sidebar.selectbox("TIMELINE PHASE", ["48h Outlook", "24h Before", "Flight Day"])
+tipo_reporte = st.sidebar.radio("REPORT TYPE", ["Executive (Client)", "Technical (Internal)"])
 
-st.title("✈️ Flight Support Team Weather Tool")
-st.markdown("---")
+st.title("✈️ Flight Support Team: Route Assessment")
+st.markdown(f"### Route: {origin} ➔ {destination}")
 
-if st.button("RUN ASSESSMENT"):
-    # Selección de fuente de datos
-    search_type = "taf" if "Before" in fase or "Outlook" in fase else "metar"
+def get_wx(icao, phase):
+    search_type = "taf" if "Before" in phase or "Outlook" in phase else "metar"
     url = f"https://api.checkwx.com/{search_type}/{icao}/decoded"
     headers = {"X-API-Key": API_KEY}
-    
-    with st.spinner('Accessing Official Aviation Sources...'):
-        response = requests.get(url, headers=headers)
-        data = response.json()
-        
-        if data.get("results", 0) > 0:
-            info = data["data"][0]
-            raw = info.get("raw_text", "")
-            vis = info.get("visibility", {}).get("miles_float", 10)
-            wind = info.get("wind", {}).get("speed_kts", 0)
+    try:
+        r = requests.get(url, headers=headers)
+        d = r.json()
+        return d["data"][0] if d.get("results", 0) > 0 else None
+    except:
+        return None
+
+if st.button("RUN COMPLETE ROUTE ASSESSMENT"):
+    with st.spinner('Analyzing Departure and Arrival conditions...'):
+        wx_org = get_wx(origin, fase)
+        wx_dst = get_wx(destination, fase)
+
+        if wx_org and wx_dst:
+            # --- ANALISIS ORIGEN ---
+            org_raw = wx_org.get("raw_text", "")
+            org_vis = wx_org.get("visibility", {}).get("miles_float", 10)
+            org_wind = wx_org.get("wind", {}).get("speed_kts", 0)
             
-            # --- DETECCIÓN DE ALERTAS CRÍTICAS ---
-            alerts = []
-            if "TS" in raw or "CB" in raw: alerts.append("⚠️ THUNDERSTORMS DETECTED")
-            if "SN" in raw or "FZ" in raw: alerts.append("⚠️ ICING / SNOW RISK")
-            if wind > 25: alerts.append("⚠️ HIGH WIND ALERT")
-            if vis < 3: alerts.append("⚠️ LOW VISIBILITY / IFR CONDITIONS")
+            # --- ANALISIS DESTINO ---
+            dst_raw = wx_dst.get("raw_text", "")
+            dst_vis = wx_dst.get("visibility", {}).get("miles_float", 10)
+            dst_wind = wx_dst.get("wind", {}).get("speed_kts", 0)
 
-            if alerts:
-                for a in alerts:
-                    st.markdown(f'<div class="alert-box">{a}</div>', unsafe_allow_html=True)
+            # --- ALERTAS ---
+            all_alerts = []
+            for raw, name in [(org_raw, origin), (dst_raw, destination)]:
+                if "TS" in raw or "CB" in raw: all_alerts.append(f"⚠️ {name}: Thunderstorms detected.")
+                if "SN" in raw or "FZ" in raw: all_alerts.append(f"⚠️ {name}: Icing/Snow risk.")
+                if "FG" in raw or "BR" in raw: all_alerts.append(f"⚠️ {name}: Fog/Mist (Low visibility).")
 
-            # --- LÓGICA DE REPORTES ---
+            if all_alerts:
+                for a in all_alerts:
+                    st.markdown(f'<div class="alert-card">{a}</div>', unsafe_allow_html=True)
+
             if tipo_reporte == "Executive (Client)":
-                st.subheader("Client-Ready Summary")
-                # Traducción amigable
-                status = "🟢 GO" if not alerts else "🟡 MONITORING" if len(alerts) < 2 else "🔴 ADVISORY"
-                
-                exec_report = f"""
-**FLIGHT WEATHER ASSESSMENT: {icao}**
-**Current Status:** {status}
+                report = f"""
+### 📋 TRIP WEATHER SUMMARY
+**Route:** {origin} to {destination} | **Phase:** {fase}
+**Status:** {"🟢 Favorable" if not all_alerts else "🟡 Under Monitoring"}
 
-**[Summary]**
-Conditions are being monitored by our Flight Support Team. {"The outlook is favorable for on-time operations." if status == "🟢 GO" else "We are observing some weather patterns that may require minor adjustments."}
+**DEPARTURE: {origin}**
+• **Conditions:** {"Clear skies and good visibility." if org_vis >= 6 else "Partial cloudiness/haze, normal operations."}
+• **Wind:** {"Light winds." if org_wind < 15 else "Breezy conditions, minor turbulence possible."}
 
-**[Key Details]**
-• **Visibility:** {"Excellent visibility at the airport." if vis >= 6 else "Some local haze/mist, no operational impact expected."}
-• **Comfort:** {"Expect a smooth flight." if wind < 15 else "Slightly gusty conditions; possible minor turbulence on departure."}
-• **Operational Outlook:** No major delays anticipated at this moment.
+**ARRIVAL: {destination}**
+• **Conditions:** {"Optimal conditions for arrival." if dst_vis >= 6 else "Visibility monitored; standard procedures in place."}
+• **Wind:** {"Calm winds." if dst_wind < 15 else "Gusty winds expected; expect a firm landing."}
 
-*Thank you for trusting our Flight Support Team.*
+**FLIGHT SUPPORT NOTE:** Our team is continuously monitoring this route. No major delays are anticipated for your ETD.
                 """
-                st.markdown(f'<div class="client-box">{exec_report}</div>', unsafe_allow_html=True)
-                st.button("Copy Executive Report", on_click=lambda: st.write(f"Copied: {exec_report}")) # Simulación
-
+                st.markdown(f'<div class="client-box">{report}</div>', unsafe_allow_html=True)
+            
             else:
-                st.subheader("Internal Technical Brief")
-                tech_report = f"""
-**INTERNAL FST BRIEFING - {icao}**
-**Phase:** {fase}
-
-**RAW DATA:** `{raw}`
-
-**METRICS:**
-- **Visibility:** {vis} SM
-- **Surface Winds:** {wind} KTS
-- **Alert Flags:** {", ".join(alerts) if alerts else "NONE"}
-
-**DISPATCH NOTES:**
-Check fuel alternates if status is Yellow/Red. Monitor NOTAMs for de-icing or runway condition codes (RCC).
-                """
-                st.markdown(f'<div class="tech-box">{tech_report}</div>', unsafe_allow_html=True)
+                # REPORTE TÉCNICO
+                st.markdown("### 🛠 INTERNAL TECHNICAL BRIEF")
+                col_org, col_dst = st.columns(2)
+                with col_org:
+                    st.subheader(f"Origin: {origin}")
+                    st.code(f"RAW: {org_raw}\n\nVis: {org_vis}SM\nWind: {org_wind}KT")
+                with col_dst:
+                    st.subheader(f"Destination: {destination}")
+                    st.code(f"RAW: {dst_raw}\n\nVis: {dst_vis}SM\nWind: {dst_wind}KT")
         else:
-            st.error("Invalid ICAO code or no data available.")
+            st.error("Error: Could not retrieve data for one or both airports. Please verify ICAO codes.")
 
-st.sidebar.markdown("---")
-st.sidebar.caption("v2.1 | Aviation Data: CheckWX")
+st.markdown("---")
+st.caption("Flight Support Team Weather Tool | Phase-Based Route Analysis")
