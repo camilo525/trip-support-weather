@@ -18,7 +18,7 @@ st.markdown("""
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. SIDEBAR - CONTROL DE MANDOS
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/784/784306.png", width=100)
+st.sidebar.image("https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png", width=100)
 st.sidebar.title("FST Weather Tool")
 icao = st.sidebar.text_input("ICAO AIRPORT CODE", value="KTEB").upper()
 fase = st.sidebar.selectbox("TIMELINE PHASE", ["48h Outlook (Trends)", "24h Before (TAF)", "Flight Day (METAR)"])
