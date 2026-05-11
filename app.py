@@ -90,7 +90,7 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
-with col_logo: st.image(LOGO_UP_LEFT, width=140)
+with col_logo: st.image(LOGO_UP_LEFT, width=200)
 with col_title: st.markdown('<div class="header-style">Flight Support Team Weather Tool</div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
