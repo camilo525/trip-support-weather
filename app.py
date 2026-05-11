@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import plotly.graph_objects as go
 from datetime import datetime
 
 # 1. CONFIGURACIÓN DE PÁGINA
@@ -16,29 +15,38 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         margin-bottom: 20px;
     }
+    
+    /* RECUADRO ORIGEN: Azul Neón */
     .tech-card-origin { 
         padding: 20px; border-radius: 15px; 
-        border: 2px solid #00d4ff; 
+        border: 2px solid #00d4ff; /* Borde Azul */
         background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; 
     }
+    
+    /* RECUADRO DESTINO: Violeta/Púrpura Neón (Cambiado para evitar confusión con alerta) */
     .tech-card-dest { 
         padding: 20px; border-radius: 15px; 
-        border: 2px solid #a855f7; 
+        border: 2px solid #a855f7; /* Borde Violeta */
         background-color: rgba(168, 85, 247, 0.05); margin-bottom: 20px; 
     }
+
     .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: transparent; font-size: 1.1em; line-height: 1.5; }
+    
     .stButton>button {
         background: linear-gradient(45deg, #005fcc, #00d4ff); color: white !important;
         font-weight: bold; border: none; border-radius: 10px; height: 3.5em;
         transition: 0.3s; text-transform: uppercase; letter-spacing: 2px;
-        width: 100%;
     }
+    
     .executive-card {
         background: rgba(255,255,255,0.03); 
         padding: 35px; border-radius: 20px; border-left: 6px solid #00d4ff;
     }
+
+    /* Colores de estatus interno */
     .status-stable { color: #00ff00; font-weight: bold; }
     .status-alert { color: #ff0000; font-weight: bold; text-decoration: underline; }
+
     input { background-color: #0a0a0a !important; border: 1px solid #333333 !important; color: #00d4ff !important; }
     .footer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 40px 0px; margin-top: 30px; border-top: 1px solid #222222; }
     </style>
@@ -50,10 +58,8 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
-with col_logo: 
-    st.image(LOGO_UP_LEFT, width=300)
-with col_title: 
-    st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
+with col_logo: st.image(LOGO_UP_LEFT, width=300)
+with col_title: st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
 st.sidebar.title("Trip Details")
@@ -70,10 +76,10 @@ def get_wx(icao, phase):
     headers = {"X-API-Key": API_KEY}
     try:
         r = requests.get(url, headers=headers)
-        data = r.json()
-        return data["data"][0] if data.get("results", 0) > 0 else None
+        return r.json()["data"][0] if r.json().get("results", 0) > 0 else None
     except: return None
 
+# Lógica de texto cliente
 def generate_client_text(wx, icao, type="dep"):
     raw = wx.get("raw_text", "").upper()
     vis = wx.get("visibility", {}).get("miles_float", 10)
@@ -85,41 +91,12 @@ def generate_client_text(wx, icao, type="dep"):
         if is_critical: return f"The terminal forecast for your arrival at {icao} currently indicates weather activity near your arrival time. Our Dispatch Team is already working on optimized routing."
         else: return f"The terminal forecast for your arrival at {icao} remains favorable. Our team confirms clear skies for your day of arrival."
 
-def draw_route_map(o_lat, o_lon, d_lat, d_lon):
-    fig = go.Figure(go.Scattergeo(
-        lon = [o_lon, d_lon], lat = [o_lat, d_lat],
-        mode = 'markers+lines',
-        line = dict(width = 2, color = '#00d4ff'),
-        marker = dict(size = 8, color = ['#00d4ff', '#a855f7']),
-        text = [origin, destination]
-    ))
-    fig.update_layout(
-        geo = dict(
-            scope='world', projection_type='orthographic', 
-            showland=True, landcolor="#111", bgcolor="rgba(0,0,0,0)", 
-            showocean=True, oceancolor="#050505", lakecolor="#050505"
-        ),
-        margin=dict(l=0,r=0,t=0,b=0), height=350, paper_bgcolor="rgba(0,0,0,0)"
-    )
-    return fig
-
 # 5. BOTÓN Y LÓGICA
 if st.button("Run Mission Assessment"):
     wx_org = get_wx(origin, fase)
     wx_dst = get_wx(destination, fase)
 
     if wx_org and wx_dst:
-        # --- SECCIÓN DEL MAPA ---
-        try:
-            o_lat = wx_org['station']['geometry']['coordinates'][1]
-            o_lon = wx_org['station']['geometry']['coordinates'][0]
-            d_lat = wx_dst['station']['geometry']['coordinates'][1]
-            d_lon = wx_dst['station']['geometry']['coordinates'][0]
-            st.plotly_chart(draw_route_map(o_lat, o_lon, d_lat, d_lon), use_container_width=True)
-        except:
-            st.warning("Map coordinates unavailable for this route.")
-
-        # --- SECCIÓN DE REPORTES ---
         if tipo_reporte == "Executive (Client)":
             st.markdown(f"""
             <div class="executive-card">
@@ -132,8 +109,21 @@ if st.button("Run Mission Assessment"):
             st.markdown("### 🛠 Internal Support Intelligence")
             c1, c2 = st.columns(2)
             
+            # --- ORIGEN ---
             with c1:
                 vis_o = wx_org.get("visibility", {}).get("miles_float", 10)
                 is_crit_o = any(x in wx_org.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis_o < 3
                 status_o = '<span class="status-alert">🔴 Alert</span>' if is_crit_o else '<span class="status-stable">🟢 Stable</span>'
-                st.markdown(f"""<div class="tech-card-origin"><h4 style="color:#00d4ff;">{origin} @ {etd}Z</h4><p class="raw-code">{wx_org.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:
+                st.markdown(f"""<div class="tech-card-origin"><h4 style="color:#00d4ff;">{origin} @ {etd}Z</h4><p class="raw-code">{wx_org.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis_o} SM | <b>Status:</b> {status_o}</p></div>""", unsafe_allow_html=True)
+
+            # --- DESTINO ---
+            with c2:
+                vis_d = wx_dst.get("visibility", {}).get("miles_float", 10)
+                is_crit_d = any(x in wx_dst.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis_d < 3
+                status_d = '<span class="status-alert">🔴 Alert</span>' if is_crit_d else '<span class="status-stable">🟢 Stable</span>'
+                st.markdown(f"""<div class="tech-card-dest"><h4 style="color:#a855f7;">{destination} @ {eta}Z</h4><p class="raw-code">{wx_dst.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis_d} SM | <b>Status:</b> {status_d}</p></div>""", unsafe_allow_html=True)
+    else:
+        st.error("ICAO not found.")
+
+# 6. FOOTER
+st.markdown(f"""<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="180"><p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p><p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime('%H:%M')}Z</p></div>""", unsafe_allow_html=True)
