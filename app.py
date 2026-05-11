@@ -5,21 +5,82 @@ from datetime import datetime
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="Flight Support Team Weather Tool", page_icon="✈️", layout="wide")
 
-# --- FORZAR MODO OSCURO TOTAL (BLACK BACKGROUND) ---
+# --- DISEÑO PRO: NEÓN Y CONTRASTE ---
 st.markdown("""
     <style>
     .stApp { background-color: #000000 !important; color: #FFFFFF !important; }
-    .stMarkdown, p, h1, h2, h3, h4, span, label, .stSelectbox, .stTextInput { color: #FFFFFF !important; }
-    input { background-color: #1a1a1a !important; color: #FFFFFF !important; border: 1px solid #333333 !important; }
-    [data-testid="stSidebar"] { background-color: #0a0a0a !important; border-right: 1px solid #222222; }
-    [data-testid="stSidebar"] * { color: #FFFFFF !important; }
-    .stButton>button { background-color: #004a99 !important; color: white !important; font-weight: bold; width: 100%; border-radius: 8px; border: 1px solid #005fcc; height: 3.5em; text-transform: uppercase; }
-    .main-card { padding: 25px; border-radius: 12px; background-color: #111111 !important; border: 1px solid #222222; color: #e0e0e0 !important; }
-    .tech-analysis-card { padding: 15px; border-radius: 8px; background-color: #1a1a1a; border-left: 4px solid #00d4ff; margin-top: 10px; font-size: 0.9em; }
-    .footer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 40px 0px; margin-top: 30px; border-top: 1px solid #222222; text-align: center; }
-    .footer-text-main { margin-top: 15px; color: #BBBBBB !important; font-size: 0.9em; font-weight: 500; letter-spacing: 1.5px; }
-    .footer-text-time { margin-top: 5px; color: #666666 !important; font-size: 0.75em; letter-spacing: 1px; }
-    code { color: #00ff00 !important; background-color: #000000 !important; }
+    
+    /* Títulos con degradado */
+    .header-style {
+        font-size: 24px;
+        font-weight: bold;
+        background: -webkit-linear-gradient(#00d4ff, #005fcc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 20px;
+    }
+
+    /* Tarjetas técnicas sin fondo gris pesado - Estilo Neón */
+    .tech-card-origin {
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #00d4ff;
+        background-color: rgba(0, 212, 255, 0.05);
+        margin-bottom: 20px;
+    }
+    
+    .tech-card-dest {
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #ff007a;
+        background-color: rgba(255, 0, 122, 0.05);
+        margin-bottom: 20px;
+    }
+
+    /* Código RAW - Limpio sobre negro */
+    .raw-code {
+        font-family: 'Courier New', monospace;
+        color: #00ff00;
+        background: transparent;
+        font-size: 1.1em;
+        line-height: 1.5;
+    }
+
+    /* Botón PRO con degradado */
+    .stButton>button {
+        background: linear-gradient(45deg, #005fcc, #00d4ff);
+        color: white !important;
+        font-weight: bold;
+        border: none;
+        border-radius: 10px;
+        height: 3.5em;
+        transition: 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+    .stButton>button:hover {
+        box-shadow: 0px 0px 15px #00d4ff;
+        transform: scale(1.02);
+    }
+
+    /* Inputs estilizados */
+    input {
+        background-color: #0a0a0a !important;
+        border: 1px solid #333333 !important;
+        color: #00d4ff !important;
+    }
+
+    /* Footer */
+    .footer-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 40px 0px;
+        margin-top: 30px;
+        border-top: 1px solid #222222;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -30,17 +91,16 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
 with col_logo: st.image(LOGO_UP_LEFT, width=100)
-with col_title: st.title("Flight Support Team Weather Tool")
-st.markdown("---")
+with col_title: st.markdown('<div class="header-style">Flight Support Team Weather Tool</div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
-st.sidebar.title("Trip Details")
+st.sidebar.title("✈️ Mission Control")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 etd = st.sidebar.text_input("ETD (UTC)", value="1200")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
 eta = st.sidebar.text_input("ETA (UTC)", value="1600")
-fase = st.sidebar.selectbox("PLANNING PHASE", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
-tipo_reporte = st.sidebar.radio("REPORT STYLE", ["Executive (Client)", "Technical (Internal)"])
+fase = st.sidebar.selectbox("TIMELINE", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
+tipo_reporte = st.sidebar.radio("MODE", ["Executive (Client)", "Technical (Internal)"])
 
 def get_wx(icao, phase):
     stype = "metar" if phase == "Flight Day (Live)" else "taf"
@@ -51,57 +111,55 @@ def get_wx(icao, phase):
         return r.json()["data"][0] if r.json().get("results", 0) > 0 else None
     except: return None
 
-# 4. EJECUCIÓN
-if st.button("RUN TRIP ANALYSIS"):
-    with st.spinner('Accessing Aviation Servers...'):
-        wx_org = get_wx(origin, fase)
-        wx_dst = get_wx(destination, fase)
+# 4. BOTÓN Y LÓGICA
+if st.button("Analyze Mission Weather"):
+    wx_org = get_wx(origin, fase)
+    wx_dst = get_wx(destination, fase)
 
-        if wx_org and wx_dst:
-            if tipo_reporte == "Executive (Client)":
-                st.subheader("Client Executive Briefing")
+    if wx_org and wx_dst:
+        if tipo_reporte == "Executive (Client)":
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 20px; border-left: 5px solid #00d4ff;">
+                <h3 style="color:#00d4ff;">Trip Briefing: {origin} ➔ {destination}</h3>
+                <p><b>Departure:</b> Conditions at {etd}Z are favorable for operation.</p>
+                <p><b>Arrival:</b> Weather at {eta}Z is within safety standards. No delays expected.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("### 🛠 Internal Support Intelligence")
+            col1, col2 = st.columns(2)
+            
+            # ORIGEN (AZUL NEÓN)
+            with col1:
+                vis_o = wx_org.get("visibility", {}).get("miles_float", 10)
                 st.markdown(f"""
-                <div class="main-card">
-                <b style="color:#4dabf7">DEPARTURE: {origin} (Scheduled {etd}Z)</b><br>
-                • Conditions are favorable for departure. Optimal visibility confirmed.<br><br>
-                <b style="color:#4dabf7">ARRIVAL: {destination} (Scheduled {eta}Z)</b><br>
-                • Destination is within operational limits. No significant delays expected.
+                <div class="tech-card-origin">
+                    <h4 style="color:#00d4ff;">{origin} @ {etd}Z</h4>
+                    <p class="raw-code">{wx_org.get("raw_text", "")}</p>
+                    <hr style="border: 0.5px solid #333;">
+                    <p><b>Vis:</b> {vis_o} SM | <b>Analysis:</b> {"🟢 Stable" if vis_o >= 5 else "🔴 Low Vis Alert"}</p>
                 </div>
                 """, unsafe_allow_html=True)
-            else:
-                st.subheader("Internal Technical Brief & Analysis")
-                c1, c2 = st.columns(2)
-                
-                for col, wx, icao, time in zip([c1, c2], [wx_org, wx_dst], [origin, destination], [etd, eta]):
-                    with col:
-                        st.info(f"**{icao} @ {time}Z**")
-                        st.code(wx.get("raw_text", ""))
-                        
-                        # Análisis Técnico Dinámico
-                        vis = wx.get("visibility", {}).get("miles_float", 10)
-                        wind = wx.get("wind", {}).get("speed_kts", 0)
-                        clouds = wx.get("clouds", [{}])[0].get("text", "Clear")
-                        
-                        analysis = f"""
-                        <div class="tech-analysis-card">
-                        <b>FST SITUATIONAL ANALYSIS:</b><br>
-                        • <b>Visibility:</b> {vis} SM ({"VFR Standard" if vis >= 5 else "IFR/Marginal Condition"})<br>
-                        • <b>Winds:</b> {wind} KTS ({"Stable" if wind < 20 else "High Wind / Gust Alert"})<br>
-                        • <b>Ceiling:</b> {clouds}<br>
-                        • <b>Notes:</b> {"Monitor TAF trends for alternate planning if visibility drops." if vis < 5 else "Routine operations recommended."}
-                        </div>
-                        """
-                        st.markdown(analysis, unsafe_allow_html=True)
-        else:
-            st.error("Data not found. Verify ICAO codes.")
+
+            # DESTINO (ROSA/MAGENTA NEÓN)
+            with col2:
+                vis_d = wx_dst.get("visibility", {}).get("miles_float", 10)
+                st.markdown(f"""
+                <div class="tech-card-dest">
+                    <h4 style="color:#ff007a;">{destination} @ {eta}Z</h4>
+                    <p class="raw-code">{wx_dst.get("raw_text", "")}</p>
+                    <hr style="border: 0.5px solid #333;">
+                    <p><b>Vis:</b> {vis_d} SM | <b>Analysis:</b> {"🟢 Stable" if vis_d >= 5 else "🔴 Low Vis Alert"}</p>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.error("Access denied or ICAO not found.")
 
 # 5. FOOTER
-st.markdown("---")
-current_utc = datetime.utcnow().strftime('%H:%M')
 st.markdown(f"""
     <div class="footer-container">
         <img src="{LOGO_BOTTOM_CENTER}" width="180">
-        <p class="footer-text-main">Dir. Operations & Standards</p>
-        <p class="footer-text-time">UTC SYSTEM TIME: {current_utc}Z</p>
+        <p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p>
+        <p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime('%H:%M')}Z</p>
     </div>
     """, unsafe_allow_html=True)
