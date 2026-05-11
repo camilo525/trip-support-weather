@@ -27,7 +27,7 @@ st.markdown("""
     input { background-color: #0a0a0a !important; border: 1px solid #333333 !important; color: #00d4ff !important; }
     .footer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 40px 0px; margin-top: 30px; border-top: 1px solid #222222; }
     
-    /* Nueva Tarjeta Ejecutiva */
+    /* Tarjeta Ejecutiva */
     .executive-card {
         background: rgba(255,255,255,0.03); 
         padding: 35px; 
@@ -45,14 +45,14 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
 with col_logo: st.image(LOGO_UP_LEFT, width=300)
-with col_title: st.markdown('<div class="header-style">Operations Team | Trip Assessment</div>', unsafe_allow_html=True)
+with col_title: st.markdown('<div class="header-style">Flight Support team | Trip Assessment</div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
-st.sidebar.title("Trip Logistics")
+st.sidebar.title("Trip Details")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
-etd = st.sidebar.text_input("ETD (UTC)", value="1200")
+etd = st.sidebar.text_input("ETD (UTC Internal)", value="1200")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
-eta = st.sidebar.text_input("ETA (UTC)", value="1600")
+eta = st.sidebar.text_input("ETA (UTC Internal)", value="1600")
 fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
 tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
 
@@ -65,8 +65,8 @@ def get_wx(icao, phase):
         return r.json()["data"][0] if r.json().get("results", 0) > 0 else None
     except: return None
 
-# 4. LÓGICA DE ANÁLISIS PARA CLIENTE
-def generate_client_text(wx, icao, time, type="dep"):
+# 4. LÓGICA DE ANÁLISIS SIN HORAS PARA CLIENTE
+def generate_client_text(wx, icao, type="dep"):
     raw = wx.get("raw_text", "").upper()
     vis = wx.get("visibility", {}).get("miles_float", 10)
     
@@ -75,24 +75,24 @@ def generate_client_text(wx, icao, time, type="dep"):
     
     if type == "dep":
         if is_critical:
-            return f"Our latest meteorological assessment for your departure at {icao} shows active weather systems in the vicinity. To prioritize your safety and ensure a smooth departure, we are evaluating the most efficient departure window for your scheduled {time}Z ETD and will advise on any minor timing adjustments shortly."
+            return f"Our latest meteorological assessment for your departure at {icao} shows active weather systems in the vicinity. To prioritize your safety and ensure a smooth operation, we are evaluating the most efficient departure window for your day of travel and will advise on any necessary adjustments shortly."
         else:
-            return f"Current weather analysis for your departure at {icao} indicates ideal flying conditions. We anticipate a seamless boarding process and an on-time departure as scheduled for {time}Z."
+            return f"Current weather analysis for your departure at {icao} indicates ideal flying conditions. We anticipate a seamless boarding process and an on-time departure as scheduled for your day of travel."
     else:
         if is_critical:
-            return f"The terminal forecast for your arrival at {icao} currently indicates low visibility or weather activity near your {time}Z ETA. Our Dispatch Team is already working on optimized routing and coordinating with local authorities to minimize any potential inconvenience."
+            return f"The terminal forecast for your arrival at {icao} currently indicates weather activity near your arrival time. Our Dispatch Team is already working on optimized routing and coordinating with local authorities to minimize any potential inconvenience during your arrival."
         else:
-            return f"The terminal forecast for your arrival at {icao} remains favorable. Our team confirms clear skies and stable winds for your {time}Z arrival, ensuring a comfortable transition and arrival experience."
+            return f"The terminal forecast for your arrival at {icao} remains favorable. Our team confirms clear skies and stable winds for your day of arrival, ensuring a comfortable and professional arrival experience."
 
 # 5. BOTÓN Y LÓGICA
-if st.button("Generate Mission Assessment"):
+if st.button("Run Mission Assessment"):
     wx_org = get_wx(origin, fase)
     wx_dst = get_wx(destination, fase)
 
     if wx_org and wx_dst:
         if tipo_reporte == "Executive (Client)":
-            dep_text = generate_client_text(wx_org, origin, etd, "dep")
-            arr_text = generate_client_text(wx_dst, destination, eta, "arr")
+            dep_text = generate_client_text(wx_org, origin, "dep")
+            arr_text = generate_client_text(wx_dst, destination, "arr")
             
             st.markdown(f"""
             <div class="executive-card">
@@ -106,7 +106,6 @@ if st.button("Generate Mission Assessment"):
             """, unsafe_allow_html=True)
             st.button("📋 Click to Copy Briefing for Client")
         else:
-            # Lado técnico se mantiene igual con el look Pro que te gustó
             st.markdown("### 🛠 Internal Support Intelligence")
             col1, col2 = st.columns(2)
             for col, wx, icao, time, color, css in zip([col1, col2], [wx_org, wx_dst], [origin, destination], [etd, eta], ["#00d4ff", "#ff007a"], ["tech-card-origin", "tech-card-dest"]):
