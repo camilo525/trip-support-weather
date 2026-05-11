@@ -15,26 +15,40 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         margin-bottom: 20px;
     }
-    .tech-card-origin { padding: 20px; border-radius: 15px; border: 1px solid #00d4ff; background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; }
-    .tech-card-dest { padding: 20px; border-radius: 15px; border: 1px solid #ff007a; background-color: rgba(255, 0, 122, 0.05); margin-bottom: 20px; }
+    
+    /* RECUADRO ORIGEN: Azul Neón */
+    .tech-card-origin { 
+        padding: 20px; border-radius: 15px; 
+        border: 2px solid #00d4ff; /* Borde Azul */
+        background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; 
+    }
+    
+    /* RECUADRO DESTINO: Violeta/Púrpura Neón (Cambiado para evitar confusión con alerta) */
+    .tech-card-dest { 
+        padding: 20px; border-radius: 15px; 
+        border: 2px solid #a855f7; /* Borde Violeta */
+        background-color: rgba(168, 85, 247, 0.05); margin-bottom: 20px; 
+    }
+
     .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: transparent; font-size: 1.1em; line-height: 1.5; }
+    
     .stButton>button {
         background: linear-gradient(45deg, #005fcc, #00d4ff); color: white !important;
         font-weight: bold; border: none; border-radius: 10px; height: 3.5em;
         transition: 0.3s; text-transform: uppercase; letter-spacing: 2px;
     }
-    .stButton>button:hover { box-shadow: 0px 0px 15px #00d4ff; transform: scale(1.02); }
-    input { background-color: #0a0a0a !important; border: 1px solid #333333 !important; color: #00d4ff !important; }
-    .footer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 40px 0px; margin-top: 30px; border-top: 1px solid #222222; }
     
-    /* Tarjeta Ejecutiva */
     .executive-card {
         background: rgba(255,255,255,0.03); 
-        padding: 35px; 
-        border-radius: 20px; 
-        border-left: 6px solid #00d4ff;
-        line-height: 1.6;
+        padding: 35px; border-radius: 20px; border-left: 6px solid #00d4ff;
     }
+
+    /* Colores de estatus interno */
+    .status-stable { color: #00ff00; font-weight: bold; }
+    .status-alert { color: #ff0000; font-weight: bold; text-decoration: underline; }
+
+    input { background-color: #0a0a0a !important; border: 1px solid #333333 !important; color: #00d4ff !important; }
+    .footer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 40px 0px; margin-top: 30px; border-top: 1px solid #222222; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,7 +59,7 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
 with col_logo: st.image(LOGO_UP_LEFT, width=300)
-with col_title: st.markdown('<div class="header-style">Flight Support team | Trip Assessment</div>', unsafe_allow_html=True)
+with col_title: st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
 st.sidebar.title("Trip Details")
@@ -65,24 +79,17 @@ def get_wx(icao, phase):
         return r.json()["data"][0] if r.json().get("results", 0) > 0 else None
     except: return None
 
-# 4. LÓGICA DE ANÁLISIS SIN HORAS PARA CLIENTE
+# Lógica de texto cliente
 def generate_client_text(wx, icao, type="dep"):
     raw = wx.get("raw_text", "").upper()
     vis = wx.get("visibility", {}).get("miles_float", 10)
-    
-    # Detección de condiciones críticas
     is_critical = any(x in raw for x in ["TS", "SN", "FG", "DZ", "RA", "SQ"]) or vis < 3
-    
     if type == "dep":
-        if is_critical:
-            return f"Our latest meteorological assessment for your departure at {icao} shows active weather systems in the vicinity. To prioritize your safety and ensure a smooth operation, we are evaluating the most efficient departure window for your day of travel and will advise on any necessary adjustments shortly."
-        else:
-            return f"Current weather analysis for your departure at {icao} indicates ideal flying conditions. We anticipate a seamless boarding process and an on-time departure as scheduled for your day of travel."
+        if is_critical: return f"Our latest meteorological assessment for your departure at {icao} shows active weather systems in the vicinity. To prioritize your safety and ensure a smooth operation, we are evaluating the most efficient departure window for your day of travel."
+        else: return f"Current weather analysis for your departure at {icao} indicates ideal flying conditions. We anticipate an on-time departure as scheduled for your day of travel."
     else:
-        if is_critical:
-            return f"The terminal forecast for your arrival at {icao} currently indicates weather activity near your arrival time. Our Dispatch Team is already working on optimized routing and coordinating with local authorities to minimize any potential inconvenience during your arrival."
-        else:
-            return f"The terminal forecast for your arrival at {icao} remains favorable. Our team confirms clear skies and stable winds for your day of arrival, ensuring a comfortable and professional arrival experience."
+        if is_critical: return f"The terminal forecast for your arrival at {icao} currently indicates weather activity near your arrival time. Our Dispatch Team is already working on optimized routing."
+        else: return f"The terminal forecast for your arrival at {icao} remains favorable. Our team confirms clear skies for your day of arrival."
 
 # 5. BOTÓN Y LÓGICA
 if st.button("Run Mission Assessment"):
@@ -91,35 +98,32 @@ if st.button("Run Mission Assessment"):
 
     if wx_org and wx_dst:
         if tipo_reporte == "Executive (Client)":
-            dep_text = generate_client_text(wx_org, origin, "dep")
-            arr_text = generate_client_text(wx_dst, destination, "arr")
-            
             st.markdown(f"""
             <div class="executive-card">
                 <h2 style="color:#00d4ff; margin-top:0;">Flight Briefing: {origin} ➔ {destination}</h2>
-                <p style="font-size:1.1em;"><b>Departure Analysis:</b> {dep_text}</p>
-                <p style="font-size:1.1em;"><b>Arrival Analysis:</b> {arr_text}</p>
-                <p style="color:#888; font-style:italic; margin-top:25px; border-top:1px solid #333; padding-top:15px;">
-                Our Operations Team continues to monitor your route in real-time to maintain the highest standards of safety, punctuality, and comfort.
-                </p>
+                <p><b>Departure:</b> {generate_client_text(wx_org, origin, "dep")}</p>
+                <p><b>Arrival:</b> {generate_client_text(wx_dst, destination, "arr")}</p>
             </div>
             """, unsafe_allow_html=True)
-            st.button("📋 Click to Copy Briefing for Client")
         else:
             st.markdown("### 🛠 Internal Support Intelligence")
-            col1, col2 = st.columns(2)
-            for col, wx, icao, time, color, css in zip([col1, col2], [wx_org, wx_dst], [origin, destination], [etd, eta], ["#00d4ff", "#ff007a"], ["tech-card-origin", "tech-card-dest"]):
-                with col:
-                    vis = wx.get("visibility", {}).get("miles_float", 10)
-                    st.markdown(f"""<div class="{css}"><h4 style="color:{color};">{icao} @ {time}Z</h4><p class="raw-code">{wx.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis} SM | <b>Status:</b> {"🟢 Stable" if vis >= 5 else "🔴 Caution"}</p></div>""", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            
+            # --- ORIGEN ---
+            with c1:
+                vis_o = wx_org.get("visibility", {}).get("miles_float", 10)
+                is_crit_o = any(x in wx_org.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis_o < 3
+                status_o = '<span class="status-alert">🔴 Alert</span>' if is_crit_o else '<span class="status-stable">🟢 Stable</span>'
+                st.markdown(f"""<div class="tech-card-origin"><h4 style="color:#00d4ff;">{origin} @ {etd}Z</h4><p class="raw-code">{wx_org.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis_o} SM | <b>Status:</b> {status_o}</p></div>""", unsafe_allow_html=True)
+
+            # --- DESTINO ---
+            with c2:
+                vis_d = wx_dst.get("visibility", {}).get("miles_float", 10)
+                is_crit_d = any(x in wx_dst.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis_d < 3
+                status_d = '<span class="status-alert">🔴 Alert</span>' if is_crit_d else '<span class="status-stable">🟢 Stable</span>'
+                st.markdown(f"""<div class="tech-card-dest"><h4 style="color:#a855f7;">{destination} @ {eta}Z</h4><p class="raw-code">{wx_dst.get("raw_text", "")}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis_d} SM | <b>Status:</b> {status_d}</p></div>""", unsafe_allow_html=True)
     else:
-        st.error("System error: Unable to retrieve aviation data. Check ICAO codes.")
+        st.error("ICAO not found.")
 
 # 6. FOOTER
-st.markdown(f"""
-    <div class="footer-container">
-        <img src="{LOGO_BOTTOM_CENTER}" width="180">
-        <p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p>
-        <p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime('%H:%M')}Z</p>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="180"><p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p><p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime('%H:%M')}Z</p></div>""", unsafe_allow_html=True)
