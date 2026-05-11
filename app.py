@@ -59,10 +59,10 @@ with col_title: st.markdown('<div class="header-style">Flight Support Team | Tri
 
 # 3. SIDEBAR
 st.sidebar.title("Trip Details")
-origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
-etd = st.sidebar.text_input("ETD (UTC Internal)", value="1200")
-destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
-eta = st.sidebar.text_input("ETA (UTC Internal)", value="1600")
+origin = st.sidebar.text_input("DEPARTURE ICAO", value="").upper()
+etd = st.sidebar.text_input("ETD (UTC Internal)", value="")
+destination = st.sidebar.text_input("ARRIVAL ICAO", value="").upper()
+eta = st.sidebar.text_input("ETA (UTC Internal)", value="")
 fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
 tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
 
@@ -134,7 +134,7 @@ if st.button("Run Mission Assessment"):
             st.markdown(f'<div class="executive-card"><h2 style="color:#00d4ff;">Flight Briefing: {origin} ➔ {destination}</h2><p><b>Departure:</b> {generate_client_text(wx_org, origin, "dep")}</p><p><b>Arrival:</b> {generate_client_text(wx_dst, destination, "arr")}</p></div>', unsafe_allow_html=True)
         else:
             # --- TECHNICAL TOOLKIT ---
-            st.markdown("### 🛠 Dispatcher Toolkit")
+            st.markdown("### 🛠 OPS Toolkit")
             st.markdown(f"""
                 <div class="tool-container">
                     <a href="https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G16&band=11&length=24" target="_blank" class="tool-btn btn-sat">🛰 LIVE SATELLITE (GOES-16)</a>
