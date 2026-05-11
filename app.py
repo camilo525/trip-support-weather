@@ -90,11 +90,11 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
-with col_logo: st.image(LOGO_UP_LEFT, width=100)
+with col_logo: st.image(LOGO_UP_LEFT, width=140)
 with col_title: st.markdown('<div class="header-style">Flight Support Team Weather Tool</div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
-st.sidebar.title("✈️ Mission Control")
+st.sidebar.title("Flight Info")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 etd = st.sidebar.text_input("ETD (UTC)", value="1200")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
@@ -112,7 +112,7 @@ def get_wx(icao, phase):
     except: return None
 
 # 4. BOTÓN Y LÓGICA
-if st.button("Analyze Mission Weather"):
+if st.button("Run Assessment"):
     wx_org = get_wx(origin, fase)
     wx_dst = get_wx(destination, fase)
 
