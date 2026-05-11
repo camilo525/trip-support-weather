@@ -80,7 +80,7 @@ if st.button("Run Mission Assessment"):
     wx_dst = get_wx(destination, fase)
 
     if wx_org and wx_dst:
-        # --- MAPA DETALLADO ---
+        # --- MAPA CON MÁXIMO DETALLE ---
         try:
             o_lat, o_lon = wx_org['station']['geometry']['coordinates'][1], wx_org['station']['geometry']['coordinates'][0]
             d_lat, d_lon = wx_dst['station']['geometry']['coordinates'][1], wx_dst['station']['geometry']['coordinates'][0]
@@ -89,21 +89,25 @@ if st.button("Run Mission Assessment"):
                 lon=[o_lon, d_lon], lat=[o_lat, d_lat], 
                 mode='lines+markers+text',
                 text=[origin, destination],
+                textfont=dict(color="#00d4ff", size=14, family="Arial Black"),
                 textposition="top center",
-                line=dict(width=2, color='#00d4ff'),
-                marker=dict(size=12, color=['#00d4ff', '#a855f7'])
+                line=dict(width=3, color='#00d4ff'),
+                marker=dict(size=12, color=['#00d4ff', '#a855f7'], symbol='diamond')
             ))
             
             fig.update_layout(
                 geo=dict(
-                    scope='world', showcountries=True, countrycolor="#444",
-                    showsubunits=True, subunitcolor="#333",
-                    showland=True, landcolor="#0a0a0a",
-                    showocean=True, oceancolor="#020202",
-                    showlakes=True, lakecolor="#050505",
-                    bgcolor="rgba(0,0,0,0)", resolution=50
+                    projection_type='equirectangular', # Mapa plano para ver mejor los estados
+                    showcountries=True, countrycolor="#888",
+                    showsubunits=True, subunitcolor="#005fcc", # Estados en Azul para que se vean!
+                    showland=True, landcolor="#050505",
+                    showocean=True, oceancolor="#000000",
+                    showlakes=True, lakecolor="#002b4d",
+                    showurbanareas=True, urbancolor="#1a1a1a", # Muestra áreas metropolitanas
+                    bgcolor="rgba(0,0,0,0)",
+                    resolution=50 
                 ),
-                margin=dict(l=0,r=0,t=0,b=0), height=500, paper_bgcolor="rgba(0,0,0,0)"
+                margin=dict(l=0,r=0,t=0,b=0), height=600, paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig, use_container_width=True)
         except: st.warning("Map coordinates unavailable.")
