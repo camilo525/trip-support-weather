@@ -84,13 +84,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-LOGO_UP_LEFT = "https://ibb.co/XkrRXFhZ.png" 
+LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon/logotype-v3/image_uploads/d1ea3807-ceaf-486c-aefb-af34155789ba/original.png" 
 LOGO_BOTTOM_CENTER = "https://ibb.co/XkrRXFhZ.png"
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
 col_logo, col_title = st.columns([1, 8])
-with col_logo: st.image(LOGO_UP_LEFT, width=100)
+with col_logo: st.image(LOGO_UP_LEFT, width=400)
 with col_title: st.markdown('<div class="header-style">Operations Team </div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
