@@ -85,7 +85,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 LOGO_UP_LEFT = "https://ibb.co/XkrRXFhZ.png" 
-LOGO_BOTTOM_CENTER = "<a href="https://ibb.co/XkrRXFhZ"><img src="https://i.ibb.co/G34S7CKv/Flight-Support-Zoom-Background-Rev2.png" alt="Flight-Support-Zoom-Background-Rev2" border="0"></a>"
+LOGO_BOTTOM_CENTER = "https://ibb.co/XkrRXFhZ.png"
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # 2. ENCABEZADO
