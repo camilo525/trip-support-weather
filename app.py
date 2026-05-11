@@ -65,4 +65,43 @@ if st.button("RUN TRIP ANALYSIS"):
                 <b style="color:#4dabf7">DEPARTURE: {origin} (Scheduled {etd}Z)</b><br>
                 • Conditions are favorable for departure. Optimal visibility confirmed.<br><br>
                 <b style="color:#4dabf7">ARRIVAL: {destination} (Scheduled {eta}Z)</b><br>
-                • Destination is within operational limits. No significant delays
+                • Destination is within operational limits. No significant delays expected.
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.subheader("Internal Technical Brief & Analysis")
+                c1, c2 = st.columns(2)
+                
+                for col, wx, icao, time in zip([c1, c2], [wx_org, wx_dst], [origin, destination], [etd, eta]):
+                    with col:
+                        st.info(f"**{icao} @ {time}Z**")
+                        st.code(wx.get("raw_text", ""))
+                        
+                        # Análisis Técnico Dinámico
+                        vis = wx.get("visibility", {}).get("miles_float", 10)
+                        wind = wx.get("wind", {}).get("speed_kts", 0)
+                        clouds = wx.get("clouds", [{}])[0].get("text", "Clear")
+                        
+                        analysis = f"""
+                        <div class="tech-analysis-card">
+                        <b>FST SITUATIONAL ANALYSIS:</b><br>
+                        • <b>Visibility:</b> {vis} SM ({"VFR Standard" if vis >= 5 else "IFR/Marginal Condition"})<br>
+                        • <b>Winds:</b> {wind} KTS ({"Stable" if wind < 20 else "High Wind / Gust Alert"})<br>
+                        • <b>Ceiling:</b> {clouds}<br>
+                        • <b>Notes:</b> {"Monitor TAF trends for alternate planning if visibility drops." if vis < 5 else "Routine operations recommended."}
+                        </div>
+                        """
+                        st.markdown(analysis, unsafe_allow_html=True)
+        else:
+            st.error("Data not found. Verify ICAO codes.")
+
+# 5. FOOTER
+st.markdown("---")
+current_utc = datetime.utcnow().strftime('%H:%M')
+st.markdown(f"""
+    <div class="footer-container">
+        <img src="{LOGO_BOTTOM_CENTER}" width="180">
+        <p class="footer-text-main">Dir. Operations & Standards</p>
+        <p class="footer-text-time">UTC SYSTEM TIME: {current_utc}Z</p>
+    </div>
+    """, unsafe_allow_html=True)
