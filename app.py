@@ -94,7 +94,7 @@ with col_logo: st.image(LOGO_UP_LEFT, width=400)
 with col_title: st.markdown('<div class="header-style">Operations Team </div>', unsafe_allow_html=True)
 
 # 3. SIDEBAR
-st.sidebar.title("Thrust Aviation Trip")
+st.sidebar.title("Trip Details")
 origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 etd = st.sidebar.text_input("ETD (UTC)", value="1200")
 destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
