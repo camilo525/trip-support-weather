@@ -95,34 +95,4 @@ if st.button("Run Mission Assessment"):
     wx_org, wx_dst = get_wx(origin, fase), get_wx(destination, fase)
 
     if wx_org and wx_dst:
-        o_lat, o_lon = get_coords(wx_org)
-        d_lat, d_lon = get_coords(wx_dst)
-        
-        if o_lat and d_lat:
-            fig = go.Figure(go.Scattergeo(
-                lon=[o_lon, d_lon], lat=[o_lat, d_lat],
-                mode='lines+markers+text', text=[origin, destination],
-                textposition="top center", line=dict(width=3, color='#00d4ff'),
-                marker=dict(size=12, color=['#00d4ff', '#a855f7'], symbol='diamond')
-            ))
-            fig.update_layout(
-                showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=450, paper_bgcolor="rgba(0,0,0,0)",
-                geo=dict(showland=True, landcolor="#0a0a0a", showocean=True, oceancolor="#000000",
-                         showlakes=True, lakecolor="#002b4d", showcountries=True, countrycolor="#888888",
-                         showsubunits=True, subunitcolor="#005fcc", resolution=50, projection_type='equirectangular')
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        if tipo_reporte == "Executive (Client)":
-            st.markdown(f"""
-            <div class="executive-card">
-                <h2 style="color:#00d4ff;">Flight Briefing: {origin} ➔ {destination}</h2>
-                <p><b>Departure:</b> {generate_client_text(wx_org, origin, True)}</p>
-                <p><b>Arrival:</b> {generate_client_text(wx_dst, destination, False)}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("### 🛠 Dispatcher Toolkit")
-            st.markdown(f"""
-            <div class="tool-container">
-                <a href="
+        o_lat, o_lon
