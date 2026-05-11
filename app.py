@@ -36,8 +36,8 @@ st.markdown("""
 
 # --- DEFINICIÓN DE LOGOS ---
 # REEMPLAZA ESTOS LINKS POR LOS DE TU EMPRESA
-LOGO_PRINCIPAL = "https://cdn-icons-png.flaticon.com/512/784/784306.png" # Arriba Izquierda
-LOGO_FOOTER = "https://cdn-icons-png.flaticon.com/512/2523/2523207.png"    # Abajo Centro (Ejemplo genial)
+LOGO_PRINCIPAL = "https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png" # Arriba Izquierda
+LOGO_FOOTER = "https://ibb.co/b5bv4Rvv"    # Abajo Centro (Ejemplo genial)
 
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
@@ -117,7 +117,7 @@ st.markdown(f"""
     <div class="footer-container">
         <img src="{LOGO_FOOTER}" width="120" class="footer-logo">
         <p style="margin-top:15px; color:#888888; font-size: 0.8em;">
-            Flight Support Team AI Division<br>
+            Dir. Operations & Standards<br>
             UTC Time: {datetime.utcnow().strftime('%H:%M')}Z
         </p>
     </div>
