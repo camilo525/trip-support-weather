@@ -150,7 +150,7 @@ if LOGO_BOTTOM_CENTER != "TU_LINK_DE_LOGO_INFERIOR_AQUI":
         <div class="footer-container">
             <img src="{LOGO_BOTTOM_CENTER}" width="200">
             <p style="margin-top:20px; color:#555555; font-size: 0.9em; letter-spacing: 2px;">
-                FLIGHT SUPPORT TEAM | AI DIVISION<br>
+                Dir. Operations & Standards<br>
                 UTC TIME: {datetime.utcnow().strftime('%H:%M')}Z
             </p>
         </div>
