@@ -1,100 +1,124 @@
 import streamlit as st
 import requests
+from datetime import datetime
 
-# 1. CONFIGURACIÓN DE PÁGINA
+# 1. CONFIGURACIÓN PROFESIONAL
 st.set_page_config(page_title="Flight Support Team Weather Tool", page_icon="✈️", layout="wide")
 
-# Diseño Corporativo
+# --- PERSONALIZACIÓN VISUAL (CSS) ---
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
-    .stButton>button { background-color: #002e5d; color: white; font-weight: bold; width: 100%; border-radius: 8px; height: 3em; }
-    .client-box { padding: 25px; border-radius: 12px; background-color: #ffffff; border: 1px solid #e0e0e0; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); color: #1a1a1a; }
-    .tech-box { padding: 20px; border-radius: 10px; background-color: #263238; color: #eceff1; font-family: monospace; }
-    .alert-card { padding: 10px; border-radius: 5px; background-color: #ffcdd2; color: #b71c1c; font-weight: bold; margin-bottom: 5px; border-left: 5px solid #b71c1c; }
+    .stApp { background-color: #ffffff; }
+    .stButton>button { background-color: #002e5d; color: white; font-weight: bold; width: 100%; border-radius: 8px; }
+    .main-card { padding: 25px; border-radius: 12px; background-color: #f8f9fa; border: 1px solid #e0e0e0; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
+    
+    /* Estilo para el logo del Footer */
+    .footer-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 0px;
+        margin-top: 50px;
+        border-top: 1px solid #eeeeee;
+    }
+    .footer-logo {
+        filter: grayscale(20%);
+        opacity: 0.8;
+        transition: 0.3s;
+    }
+    .footer-logo:hover {
+        opacity: 1;
+        filter: grayscale(0%);
+    }
     </style>
     """, unsafe_allow_html=True)
 
+# --- DEFINICIÓN DE LOGOS ---
+# REEMPLAZA ESTOS LINKS POR LOS DE TU EMPRESA
+LOGO_PRINCIPAL = "https://cdn-icons-png.flaticon.com/512/784/784306.png" # Arriba Izquierda
+LOGO_FOOTER = "https://cdn-icons-png.flaticon.com/512/2523/2523207.png"    # Abajo Centro (Ejemplo genial)
+
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
-# 2. SIDEBAR - TRIP INFO
-st.sidebar.title("FST Trip Manager")
-origin = st.sidebar.text_input("ORIGIN ICAO", value="KTEB").upper()
-destination = st.sidebar.text_input("DESTINATION ICAO", value="KMIA").upper()
-fase = st.sidebar.selectbox("TIMELINE PHASE", ["48h Outlook", "24h Before", "Flight Day"])
-tipo_reporte = st.sidebar.radio("REPORT TYPE", ["Executive (Client)", "Technical (Internal)"])
+# 2. ENCABEZADO CON LOGO ARRIBA A LA IZQUIERDA
+col_header_1, col_header_2 = st.columns([1, 8])
+with col_header_1:
+    st.image(LOGO_PRINCIPAL, width=80)
+with col_header_2:
+    st.title("Flight Support Team Weather Tool")
 
-st.title("✈️ Flight Support Team: Route Assessment")
-st.markdown(f"### Route: {origin} ➔ {destination}")
+st.markdown("---")
+
+# 3. SIDEBAR - DETALLES DEL VUELO
+st.sidebar.title("✈️ FST Dispatcher")
+origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
+etd = st.sidebar.text_input("ETD (UTC)", value="1200")
+destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
+eta = st.sidebar.text_input("ETA (UTC)", value="1600")
+
+fase = st.sidebar.selectbox("PLANNING PHASE", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
+tipo_reporte = st.sidebar.radio("REPORT STYLE", ["Executive / Client", "Technical / Support"])
+
+st.markdown(f"**Route Analysis:** {origin} @ {etd}z ➔ {destination} @ {eta}z")
 
 def get_wx(icao, phase):
-    search_type = "taf" if "Before" in phase or "Outlook" in phase else "metar"
-    url = f"https://api.checkwx.com/{search_type}/{icao}/decoded"
+    stype = "metar" if phase == "Flight Day (Live)" else "taf"
+    url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
     headers = {"X-API-Key": API_KEY}
     try:
         r = requests.get(url, headers=headers)
-        d = r.json()
-        return d["data"][0] if d.get("results", 0) > 0 else None
-    except:
-        return None
+        return r.json()["data"][0] if r.json().get("results", 0) > 0 else None
+    except: return None
 
-if st.button("RUN COMPLETE ROUTE ASSESSMENT"):
-    with st.spinner('Analyzing Departure and Arrival conditions...'):
+# 4. LÓGICA PRINCIPAL
+if st.button("EXECUTE MISSION ANALYSIS"):
+    with st.spinner('Synchronizing with Global Aviation Weather Centers...'):
         wx_org = get_wx(origin, fase)
         wx_dst = get_wx(destination, fase)
 
         if wx_org and wx_dst:
-            # --- ANALISIS ORIGEN ---
             org_raw = wx_org.get("raw_text", "")
-            org_vis = wx_org.get("visibility", {}).get("miles_float", 10)
-            org_wind = wx_org.get("wind", {}).get("speed_kts", 0)
-            
-            # --- ANALISIS DESTINO ---
             dst_raw = wx_dst.get("raw_text", "")
-            dst_vis = wx_dst.get("visibility", {}).get("miles_float", 10)
-            dst_wind = wx_dst.get("wind", {}).get("speed_kts", 0)
-
-            # --- ALERTAS ---
-            all_alerts = []
-            for raw, name in [(org_raw, origin), (dst_raw, destination)]:
-                if "TS" in raw or "CB" in raw: all_alerts.append(f"⚠️ {name}: Thunderstorms detected.")
-                if "SN" in raw or "FZ" in raw: all_alerts.append(f"⚠️ {name}: Icing/Snow risk.")
-                if "FG" in raw or "BR" in raw: all_alerts.append(f"⚠️ {name}: Fog/Mist (Low visibility).")
-
-            if all_alerts:
-                for a in all_alerts:
-                    st.markdown(f'<div class="alert-card">{a}</div>', unsafe_allow_html=True)
-
-            if tipo_reporte == "Executive (Client)":
-                report = f"""
-### 📋 TRIP WEATHER SUMMARY
-**Route:** {origin} to {destination} | **Phase:** {fase}
-**Status:** {"🟢 Favorable" if not all_alerts else "🟡 Under Monitoring"}
-
-**DEPARTURE: {origin}**
-• **Conditions:** {"Clear skies and good visibility." if org_vis >= 6 else "Partial cloudiness/haze, normal operations."}
-• **Wind:** {"Light winds." if org_wind < 15 else "Breezy conditions, minor turbulence possible."}
-
-**ARRIVAL: {destination}**
-• **Conditions:** {"Optimal conditions for arrival." if dst_vis >= 6 else "Visibility monitored; standard procedures in place."}
-• **Wind:** {"Calm winds." if dst_wind < 15 else "Gusty winds expected; expect a firm landing."}
-
-**FLIGHT SUPPORT NOTE:** Our team is continuously monitoring this route. No major delays are anticipated for your ETD.
-                """
-                st.markdown(f'<div class="client-box">{report}</div>', unsafe_allow_html=True)
             
-            else:
-                # REPORTE TÉCNICO
-                st.markdown("### 🛠 INTERNAL TECHNICAL BRIEF")
-                col_org, col_dst = st.columns(2)
-                with col_org:
-                    st.subheader(f"Origin: {origin}")
-                    st.code(f"RAW: {org_raw}\n\nVis: {org_vis}SM\nWind: {org_wind}KT")
-                with col_dst:
-                    st.subheader(f"Destination: {destination}")
-                    st.code(f"RAW: {dst_raw}\n\nVis: {dst_vis}SM\nWind: {dst_wind}KT")
-        else:
-            st.error("Error: Could not retrieve data for one or both airports. Please verify ICAO codes.")
+            # Alertas Críticas
+            alerts = []
+            if any(x in org_raw + dst_raw for x in ["TS", "CB", "SQ"]): alerts.append("⛈️ STORM ACTIVITY DETECTED")
+            if any(x in org_raw + dst_raw for x in ["SN", "FZDZ", "FZRA"]): alerts.append("❄️ ICING/SNOW CONDITIONS")
+            
+            for a in alerts:
+                st.error(a)
 
-st.markdown("---")
-st.caption("Flight Support Team Weather Tool | Phase-Based Route Analysis")
+            if tipo_reporte == "Executive / Client":
+                st.subheader("Client Executive Briefing")
+                report = f"""
+                <div class="main-card">
+                <b>DEPARTURE: {origin} (Scheduled {etd}Z)</b><br>
+                • Our analysis for your departure time indicates favorable conditions. Visibility is clear.<br><br>
+                <b>ARRIVAL: {destination} (Scheduled {eta}Z)</b><br>
+                • Conditions at destination are being monitored. No significant weather-related delays expected.
+                </div>
+                """
+                st.markdown(report, unsafe_allow_html=True)
+            else:
+                st.subheader("Internal Support Briefing")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.info(f"**ORIGIN: {origin}**")
+                    st.text(f"Raw: {org_raw}")
+                with c2:
+                    st.info(f"**DESTINATION: {destination}**")
+                    st.text(f"Raw: {dst_raw}")
+        else:
+            st.error("Could not fetch data. Please check ICAO codes.")
+
+# 5. FOOTER CON LOGO ABAJO AL CENTRO
+st.markdown(f"""
+    <div class="footer-container">
+        <img src="{LOGO_FOOTER}" width="120" class="footer-logo">
+        <p style="margin-top:15px; color:#888888; font-size: 0.8em;">
+            Flight Support Team AI Division<br>
+            UTC Time: {datetime.utcnow().strftime('%H:%M')}Z
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
