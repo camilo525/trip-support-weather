@@ -53,7 +53,23 @@ LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon
 LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
 API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
-# --- HEADER ---
+# --- HEADER (Línea 59 corregida) ---
 col_logo, col_title = st.columns([1, 8])
 with col_logo: st.image(LOGO_UP_LEFT, width=300)
-with col_title: st.markdown('<div class="header-style">Flight Support Team
+with col_title: 
+    st.markdown("""<div class="header-style">Flight Support Team | VIP Operations Console</div>""", unsafe_allow_html=True)
+
+# --- SIDEBAR ---
+st.sidebar.title("Trip Details")
+etapa = st.sidebar.selectbox("FLIGHT MILESTONE (Etapa)", [
+    "1. Trip Sheet Update (Datos Recibidos)",
+    "2. Crew & Tail Info (Itinerario Final)",
+    "3. Positioning & Weather (Día del Vuelo)",
+    "4. Aircraft Ready & FBO (Aeronave Lista)",
+    "5. Pushing Back (Iniciando Rodaje)"
+])
+origin = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
+etd = st.sidebar.text_input("ETD (UTC)", value="1200")
+destination = st.sidebar.text_input("ARRIVAL ICAO", value="KMIA").upper()
+eta = st.sidebar.text_input("ETA (UTC)", value="1600")
+tail = st.sidebar.
