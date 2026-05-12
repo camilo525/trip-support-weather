@@ -48,4 +48,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-LOGO
+# --- DEFINICIÓN DE LOGOS Y API ---
+LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon/logotype-v3/image_uploads/d1ea3807-ceaf-486c-aefb-af34155789ba/original.png" 
+LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
+API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
+
+# --- HEADER ---
+col_logo, col_title = st.columns([1, 8])
+with col_logo: st.image(LOGO_UP_LEFT, width=300)
+with col_title: st.markdown('<div class="header-style">Flight Support Team
