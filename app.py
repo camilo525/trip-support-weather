@@ -39,7 +39,7 @@ def get_ops_data(icao, phase):
     return None
 
 # --- SIDEBAR CONFIG ---
-st.sidebar.image("", width=220)
+st.sidebar.image("https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png", width=220)
 st.sidebar.title("Flight Support Team")
 dep_icao = st.sidebar.text_input("DEPARTURE (ICAO)", "KTEB").upper()
 arr_icao = st.sidebar.text_input("ARRIVAL (ICAO)", "KMIA").upper()
