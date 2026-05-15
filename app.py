@@ -16,17 +16,17 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         margin-bottom: 20px;
     }
-    .airport-label { color: #00d4ff; font-size: 0.85em; font-weight: bold; margin-bottom: 15px; line-height: 1.2; }
+    .airport-label { color: #00d4ff; font-size: 0.85em; font-weight: bold; margin-bottom: 15px; }
     .tech-card-origin { padding: 20px; border-radius: 15px; border: 2px solid #00d4ff; background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; }
     .tech-card-dest { padding: 20px; border-radius: 15px; border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.05); margin-bottom: 20px; }
-    .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: #0a0a0a; padding: 10px; border-radius: 5px; font-size: 0.85em; line-height: 1.4; border: 1px solid #222; margin: 10px 0; }
+    .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: #0a0a0a; padding: 10px; border-radius: 5px; font-size: 0.85em; border: 1px solid #222; }
     .stButton>button {
         background: linear-gradient(45deg, #005fcc, #00d4ff); color: white !important;
         font-weight: bold; border: none; border-radius: 10px; height: 3.5em; width: 100%;
     }
     .executive-card { background: #ffffff; padding: 35px; border-radius: 20px; border-left: 8px solid #00d4ff; color: #111; }
-    .data-row { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
-    .footer-container { display: flex; flex-direction: column; align-items: center; padding: 40px 0; margin-top: 30px; border-top: 1px solid #222; }
+    .data-row { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 4px; border-bottom: 1px solid #222; }
+    .footer-container { display: flex; flex-direction: column; align-items: center; padding: 40px 0; border-top: 1px solid #222; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -47,7 +47,8 @@ def get_airport_static_data(icao):
                 "name": d.get("name", icao),
                 "city": d.get("municipalityName", "Unknown City"),
                 "tz": d.get("timeZone", "UTC"),
-                "coords": [d.get("location", {}).get("lat"), d.get("location", {}).get("lon")]
+                "lat": d.get("location", {}).get("lat"),
+                "lon": d.get("location", {}).get("lon")
             }
     except: return None
     return None
@@ -84,20 +85,20 @@ LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734
 
 col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image(LOGO_UP_LEFT, width=250)
-with col_title: st.markdown('<div class="header-style">Flight Support Team | Hybrid Mission Assessment</div>', unsafe_allow_html=True)
+with col_title: st.markdown('<div class="header-style">Flight Support Team | Hybrid Assessment</div>', unsafe_allow_html=True)
 
 # --- LÓGICA DE RIESGO ---
 def evaluate_risk(wx):
     if not wx: return False, {}
     vis = wx.get("visibility", {}).get("miles_float", 10)
-    wind_spd = wx.get("wind", {}).get("speed_kts", 0)
+    wind = wx.get("wind", {}).get("speed_kts", 0)
     raw = wx.get("raw_text", "").upper()
     ceiling = 10000
     for layer in wx.get("clouds", []):
         if layer.get("code") in ["BKN", "OVC"]:
             ceiling = min(ceiling, layer.get("base_feet_agl", 10000))
-    is_crit = (vis < 3 or wind_spd > 20 or ceiling < 1000 or any(x in raw for x in ["TS", "SN", "FG", "SQ"]))
-    return is_crit, {"vis": vis, "wind": wind_spd, "ceiling": ceiling}
+    is_crit = (vis < 3 or wind > 20 or ceiling < 1000 or any(x in raw for x in ["TS", "SN", "FG"]))
+    return is_crit, {"vis": vis, "wind": wind, "ceiling": ceiling}
 
 # --- EJECUCIÓN ---
 if st.button("Run Hybrid Assessment"):
@@ -105,9 +106,8 @@ if st.button("Run Hybrid Assessment"):
     wx_d = get_weather_data(destination_icao, fase)
 
     if wx_o and wx_d and info_o and info_d:
-        # MAPA
-        fig = go.Figure(go.Scattergeo(
-            lon=[info_o["coords"][1], info_d["coords"][1]], 
-            lat=[info_o["coords"][0], info_d["coords"][0]], 
-            mode='lines+markers', line=dict(width=2, color='#00d4ff'),
-            marker=dict(size=10, color=['#00d4ff
+        # Mapa Seguro (Variables cortas)
+        lats = [info_o["lat"], info_d["lat"]]
+        lons = [info_o["lon"], info_d["lon"]]
+        fig = go.Figure
+        
