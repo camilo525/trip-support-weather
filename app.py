@@ -34,31 +34,25 @@ st.markdown("""
 CHECKWX_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 AERODATA_KEY = "d6ae47d1-8477-42c4-9f26-dc4e7939a81b"
 
-# --- LÓGICA HÍBRIDA DE DATOS ---
-
+# --- LÓGICA HÍBRIDA ---
 def get_airport_static_data(icao):
-    """Obtiene info estática de AeroDataBox"""
     if not icao or len(icao) < 3: return None
     url = f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao}"
-    headers = {
-        "X-RapidAPI-Key": AERODATA_KEY,
-        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
-    }
+    headers = {"X-RapidAPI-Key": AERODATA_KEY, "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"}
     try:
         r = requests.get(url, headers=headers, timeout=5)
         if r.status_code == 200:
-            data = r.json()
+            d = r.json()
             return {
-                "name": data.get("name", icao),
-                "city": data.get("municipalityName", "Unknown City"),
-                "tz": data.get("timeZone", "UTC"),
-                "coords": [data.get("location", {}).get("lat"), data.get("location", {}).get("lon")]
+                "name": d.get("name", icao),
+                "city": d.get("municipalityName", "Unknown City"),
+                "tz": d.get("timeZone", "UTC"),
+                "coords": [d.get("location", {}).get("lat"), d.get("location", {}).get("lon")]
             }
     except: return None
     return None
 
 def get_weather_data(icao, phase):
-    """Obtiene info climática de CheckWX"""
     stype = "metar" if phase == "Flight Day (Live)" else "taf"
     url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
     headers = {"X-API-Key": CHECKWX_KEY}
@@ -70,18 +64,13 @@ def get_weather_data(icao, phase):
 
 # --- SIDEBAR ---
 st.sidebar.title("Trip Configuration")
-
-# Origen
 origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
-info_org = get_airport_static_data(origin_icao)
-if info_org:
-    st.sidebar.markdown(f'<div class="airport-label">✈️ {info_org["name"]}<br>🏙️ {info_org["city"]}</div>', unsafe_allow_html=True)
+info_o = get_airport_static_data(origin_icao)
+if info_o: st.sidebar.markdown(f'<div class="airport-label">✈️ {info_o["name"]}</div>', unsafe_allow_html=True)
 
-# Destino
 destination_icao = st.sidebar.text_input("ARRIVAL ICAO", value="KOPF").upper()
-info_dst = get_airport_static_data(destination_icao)
-if info_dst:
-    st.sidebar.markdown(f'<div class="airport-label">✈️ {info_dst["name"]}<br>🏙️ {info_dst["city"]}</div>', unsafe_allow_html=True)
+info_d = get_airport_static_data(destination_icao)
+if info_d: st.sidebar.markdown(f'<div class="airport-label">✈️ {info_d["name"]}</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
 etd = st.sidebar.text_input("ETD (Internal)", value="12:00")
@@ -89,7 +78,7 @@ eta = st.sidebar.text_input("ETA (Internal)", value="15:30")
 fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
 tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
 
-# --- CABECERA ---
+# --- HEADER ---
 LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon/logotype-v3/image_uploads/d1ea3807-ceaf-486c-aefb-af34155789ba/original.png"
 LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
 
@@ -107,31 +96,18 @@ def evaluate_risk(wx):
     for layer in wx.get("clouds", []):
         if layer.get("code") in ["BKN", "OVC"]:
             ceiling = min(ceiling, layer.get("base_feet_agl", 10000))
-    
     is_crit = (vis < 3 or wind_spd > 20 or ceiling < 1000 or any(x in raw for x in ["TS", "SN", "FG", "SQ"]))
     return is_crit, {"vis": vis, "wind": wind_spd, "ceiling": ceiling}
 
 # --- EJECUCIÓN ---
 if st.button("Run Hybrid Assessment"):
-    wx_org = get_weather_data(origin_icao, fase)
-    wx_dst = get_weather_data(destination_icao, fase)
+    wx_o = get_weather_data(origin_icao, fase)
+    wx_d = get_weather_data(destination_icao, fase)
 
-    if wx_org and wx_dst and info_org and info_dst:
+    if wx_o and wx_d and info_o and info_d:
         # MAPA
         fig = go.Figure(go.Scattergeo(
-            lon=[info_org["coords"][1], info_dst["coords"][1]], 
-            lat=[info_org["coords"][0], info_dst["coords"][0]], 
+            lon=[info_o["coords"][1], info_d["coords"][1]], 
+            lat=[info_o["coords"][0], info_d["coords"][0]], 
             mode='lines+markers', line=dict(width=2, color='#00d4ff'),
-            marker=dict(size=10, color=['#00d4ff', '#a855f7'], symbol='diamond')
-        ))
-        fig.update_layout(geo=dict(showland=True, landcolor="#0a0a0a", bgcolor="rgba(0,0,0,0)"), margin=dict(l=0, r=0, t=0, b=0), height=300, paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig, use_container_width=True)
-
-        risk_o, stats_o = evaluate_risk(wx_org)
-        risk_d, stats_d = evaluate_risk(wx_dst)
-
-        if tipo_reporte == "Executive (Client)":
-            exec_html = f'<div class="executive-card"><h2 style="color:#005fcc; margin:0;">{info_org["name"]} ➔ {info_dst["name"]}</h2>'
-            exec_html += f'<p style="color:#666; margin-bottom:20px;">{info_org["city"]} to {info_dst["city"]}</p>'
-            exec_html += f'<p><b>Departure:</b> ' + ("Unstable conditions detected. Coordination required." if risk_o else "Weather is ideal and stable for departure.") + '</p>'
-            exec_html += f'<p><b>Arrival:</b> ' + ("Monitoring meteorological activity at destination."
+            marker=dict(size=10, color=['#00d4ff
