@@ -52,8 +52,7 @@ if st.button("RUN FULL MISSION ANALYSIS"):
         d_dep = get_ops_data(dep_icao, fase)
         d_arr = get_ops_data(arr_icao, fase)
 
-    if d_dep and d_arr:
-        def analyze_technical(wx, phase):
+def analyze_technical(wx, phase):
             raw = wx.get("raw_text", "").upper()
             vis = wx.get("visibility", {}).get("miles_float", 10)
             wind_dir = wx.get("wind", {}).get("degrees", 0)
@@ -63,20 +62,23 @@ if st.button("RUN FULL MISSION ANALYSIS"):
             
             ceil = 10000
             cloud_desc = "Clear Skies"
+            
+            # Verificamos si existen nubes y si la lista tiene elementos
             if wx.get("clouds"):
                 layers = wx["clouds"]
-                cloud_desc = ", ".join([f"{l['code']} at {l['base_feet_agl']}ft" for l in layers])
+                # Usamos .get() con un valor por defecto (0) para evitar el KeyError
+                cloud_desc = ", ".join([f"{l['code']} at {l.get('base_feet_agl', 0)}ft" for l in layers])
                 for l in layers:
                     if l.get("code") in ["BKN", "OVC"]:
                         ceil = min(ceil, l.get("base_feet_agl", 10000))
             
-            # Evaluación Lógica
+            # Evaluación Lógica de Riesgo
             if "Live" in phase:
-                crit = (vis < 3 or wind_spd > 25 or ceil < 1000 or "TS" in raw)
+                crit = (vis < 3 or wind_spd > 25 or ceil < 1000 or any(x in raw for x in ["TS", "FG", "SN", "SQ"]))
                 status = "🔴 CRITICAL" if crit else "🟢 NOMINAL"
                 client_msg = "Current conditions are stable for departure." if not crit else "Operations are currently under weather delay/monitoring."
             elif "24h" in phase:
-                crit = (vis < 5 or wind_spd > 20 or "PROB" in raw or "TEMPO" in raw)
+                crit = (vis < 5 or wind_spd > 20 or any(x in raw for x in ["PROB", "TEMPO", "TS"]))
                 status = "🟡 MONITORING" if crit else "🟢 STABLE"
                 client_msg = "Forecast indicates favorable windows for the scheduled time." if not crit else "Potential weather fluctuations detected. Monitoring closely."
             else:
