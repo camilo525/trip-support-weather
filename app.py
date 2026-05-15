@@ -128,5 +128,13 @@ if st.button("RUN FULL MISSION ANALYSIS"):
         fig.update_layout(geo=dict(showland=True, landcolor="#111", bgcolor="rgba(0,0,0,0)"), height=300, margin=dict(l=0, r=0, t=0, b=0))
         st.plotly_chart(fig, use_container_width=True)
 
+        # --- LOGO INFERIOR CENTRADO ---
+        col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+        with col_f2:
+            st.image("https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png", width=150)
+
+    else:
+        st.error("❌ Data Sync Failure. Verify ICAO codes or check API Connection.")
+
     else:
         st.error("❌ Data Sync Failure. Verify ICAO codes or check API Connection.")
