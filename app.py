@@ -41,8 +41,8 @@ def get_ops_data(icao, phase):
 # --- SIDEBAR CONFIG ---
 st.sidebar.image("https://thrust-aviation.com/wp-content/uploads/2024/02/Logo-White-500-2-e1710003051285.png", width=200)
 st.sidebar.title("Flight Support Team")
-dep_icao = st.sidebar.text_input("DEPARTURE (ICAO)", "KTEB").upper()
-arr_icao = st.sidebar.text_input("ARRIVAL (ICAO)", "KMIA").upper()
+dep_icao = st.sidebar.text_input("DEPARTURE (ICAO)", "").upper()
+arr_icao = st.sidebar.text_input("ARRIVAL (ICAO)", "").upper()
 fase = st.sidebar.selectbox("Analysis Window", ["Live Ops (METAR)", "24h Pre-Flight (TAF)", "48h Outlook (Trends)"])
 
 st.markdown('<h1 style="color:#00d4ff;">Operational Mission Assessment</h1>', unsafe_allow_html=True)
