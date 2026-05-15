@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # 1. CONFIGURACIÓN
-st.set_page_config(page_title="Ops Assessment Tool v3.2", page_icon="✈️", layout="wide")
+st.set_page_config(page_title="Ops Assessment Tool v3.3", page_icon="✈️", layout="wide")
 
 # --- DISEÑO CSS ---
 st.markdown("""
@@ -24,14 +24,13 @@ st.markdown("""
 CHECKWX_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 AERODATA_KEY = "d6ae47d1-8477-42c4-9f26-dc4e7939a81b"
 
-# --- FUNCIONES DE RESCATE ---
+# --- FUNCIONES DE RESPALDO ---
 def get_mock_weather(icao):
-    """Genera datos de respaldo si la API falla"""
     return {
-        "raw_text": f"{icao} 151453Z 16009KT 10SM FEW025 22/14 A3012 RMK AO2",
+        "raw_text": f"{icao} 151453Z 16009KT 10SM FEW025 22/14 A3012",
         "visibility": {"miles_float": 10.0},
-        "wind": {"speed_kts": 9},
-        "clouds": [{"code": "FEW", "base_feet_agl": 2500}]
+        "wind": {"speed_kts": 5},
+        "clouds": [{"code": "FEW", "base_feet_agl": 3000}]
     }
 
 def get_weather(icao, phase):
@@ -40,12 +39,10 @@ def get_weather(icao, phase):
     url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
     headers = {"X-API-Key": CHECKWX_KEY}
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, timeout=8)
         data = r.json()
-        if data.get("results", 0) > 0:
-            return data["data"][0]
-    except:
-        return None
+        if data.get("results", 0) > 0: return data["data"][0]
+    except: return None
     return None
 
 def get_airport_static(icao):
@@ -53,14 +50,13 @@ def get_airport_static(icao):
     url = f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao}"
     headers = {"X-RapidAPI-Key": AERODATA_KEY, "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"}
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, timeout=8)
         if r.status_code == 200:
             d = r.json()
-            return {"name": d.get("name", icao), "city": d.get("municipalityName", "City"), 
-                    "lat": d.get("location", {}).get("lat"), "lon": d.get("location", {}).get("lon")}
-    except:
-        return {"name": icao, "city": "Unknown", "lat": 25.79, "lon": -80.28}
-    return None
+            return {"name": d.get("name", icao), "lat": d.get("location", {}).get("lat"), "lon": d.get("location", {}).get("lon")}
+    except: pass
+    # Backup si AeroDataBox falla para evitar el TypeError
+    return {"name": icao, "lat": 0.0, "lon": 0.0}
 
 # --- SIDEBAR ---
 st.sidebar.title("Trip Configuration")
@@ -73,9 +69,8 @@ tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical
 
 # --- HEADER ---
 col_logo, col_title = st.columns([1, 4])
-with col_title: st.markdown('<div class="header-style">Flight Support | Mission Assessment 3.2</div>', unsafe_allow_html=True)
+with col_title: st.markdown('<div class="header-style">Flight Support | Mission Assessment 3.3</div>', unsafe_allow_html=True)
 
-# --- RIESGO ---
 def evaluate_risk(wx):
     if not wx: return False, {"vis": 10, "wind": 0, "ceiling": 10000}
     vis = wx.get("visibility", {}).get("miles_float", 10)
@@ -90,32 +85,4 @@ def evaluate_risk(wx):
 
 # --- ACCIÓN ---
 if st.button("RUN ASSESSMENT"):
-    with st.spinner("Analyzing Global Ops Data..."):
-        # Intentar clima real, si falla usar Mock
-        wx_o = get_weather(origin_icao, fase) or get_mock_weather(origin_icao)
-        wx_d = get_weather(destination_icao, fase) or get_mock_weather(destination_icao)
-        info_o = get_airport_static(origin_icao)
-        info_d = get_airport_static(destination_icao)
-
-    # MAPA
-    lats, lons = [info_o["lat"], info_d["lat"]], [info_o["lon"], info_d["lon"]]
-    fig = go.Figure(go.Scattergeo(lat=lats, lon=lons, mode='lines+markers', line=dict(width=2, color='#00d4ff')))
-    fig.update_layout(geo=dict(showland=True, landcolor="#0a0a0a", bgcolor="rgba(0,0,0,0)"), height=300, margin=dict(l=0, r=0, t=0, b=0))
-    st.plotly_chart(fig, use_container_width=True)
-
-    risk_o, stats_o = evaluate_risk(wx_o)
-    risk_d, stats_d = evaluate_risk(wx_d)
-
-    if tipo_reporte == "Executive (Client)":
-        msg_o = "Unstable weather. Coordination required." if risk_o else "Weather is ideal for departure."
-        msg_d = "Activity detected. Ops Team monitoring." if risk_d else "Favorable forecast for arrival."
-        st.markdown(f'<div class="executive-card"><h2>{info_o["name"]} ➔ {info_d["name"]}</h2><p><b>Departure:</b> {msg_o}</p><p><b>Arrival:</b> {msg_d}</p></div>', unsafe_allow_html=True)
-    else:
-        st.markdown("### 🛠 OPS Technical Assessment")
-        t1, t2 = st.columns(2)
-        with t1:
-            lbl = '<b style="color:#ff3333;">🔴 CRITICAL</b>' if risk_o else '<b style="color:#00ff00;">🟢 NOMINAL</b>'
-            st.markdown(f'<div class="tech-card-origin"><h4>{info_o["name"]}</h4><p>{etd}Z | Status: {lbl}</p><div class="raw-code">{wx_o["raw_text"]}</div><p>Vis: {stats_o["vis"]} SM | Wind: {stats_o["wind"]} KTS | Ceiling: {stats_o["ceiling"]} FT</p></div>', unsafe_allow_html=True)
-        with t2:
-            lbl = '<b style="color:#ff3333;">🔴 CRITICAL</b>' if risk_d else '<b style="color:#00ff00;">🟢 NOMINAL</b>'
-            st.markdown(f'<div class="tech-card-dest"><h4>{info_d["name"]}</h4><p>{eta}Z | Status: {lbl}</p><div class="raw-code">{wx_d["raw_text"]}</div><p>Vis: {stats_d["vis"]} SM | Wind: {stats_d["wind"]} KTS | Ceiling: {stats_d["ceiling"]} FT</p></div>', unsafe_allow_html=True)
+    with st.
