@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # 1. CONFIGURACIÓN DE PÁGINA
-st.set_page_config(page_title="Ops Assessment Tool v2.0", page_icon="✈️", layout="wide")
+st.set_page_config(page_title="Ops Assessment Tool v3.0", page_icon="✈️", layout="wide")
 
 # --- DISEÑO CSS ---
 st.markdown("""
@@ -30,16 +30,38 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- RECURSOS & API ---
-LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon/logotype-v3/image_uploads/d1ea3807-ceaf-486c-aefb-af34155789ba/original.png"
-LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
-API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
+# --- API KEYS ---
+CHECKWX_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
+AERODATA_KEY = "d6ae47d1-8477-42c4-9f26-dc4e7939a81b"
 
-def get_wx(icao, phase):
+# --- LÓGICA HÍBRIDA DE DATOS ---
+
+def get_airport_static_data(icao):
+    """Obtiene info estática de AeroDataBox"""
     if not icao or len(icao) < 3: return None
+    url = f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao}"
+    headers = {
+        "X-RapidAPI-Key": AERODATA_KEY,
+        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            return {
+                "name": data.get("name", icao),
+                "city": data.get("municipalityName", "Unknown City"),
+                "tz": data.get("timeZone", "UTC"),
+                "coords": [data.get("location", {}).get("lat"), data.get("location", {}).get("lon")]
+            }
+    except: return None
+    return None
+
+def get_weather_data(icao, phase):
+    """Obtiene info climática de CheckWX"""
     stype = "metar" if phase == "Flight Day (Live)" else "taf"
     url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
-    headers = {"X-API-Key": API_KEY}
+    headers = {"X-API-Key": CHECKWX_KEY}
     try:
         r = requests.get(url, headers=headers, timeout=5)
         data = r.json()
@@ -48,96 +70,68 @@ def get_wx(icao, phase):
 
 # --- SIDEBAR ---
 st.sidebar.title("Trip Configuration")
-origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
-wx_org_name = get_wx(origin_icao, "Flight Day (Live)")
-if wx_org_name:
-    st.sidebar.markdown(f'<div class="airport-label">✈️ {wx_org_name.get("station",{}).get("name", "")}</div>', unsafe_allow_html=True)
 
+# Origen
+origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
+info_org = get_airport_static_data(origin_icao)
+if info_org:
+    st.sidebar.markdown(f'<div class="airport-label">✈️ {info_org["name"]}<br>🏙️ {info_org["city"]}</div>', unsafe_allow_html=True)
+
+# Destino
 destination_icao = st.sidebar.text_input("ARRIVAL ICAO", value="KOPF").upper()
-wx_dst_name = get_wx(destination_icao, "Flight Day (Live)")
-if wx_dst_name:
-    st.sidebar.markdown(f'<div class="airport-label">✈️ {wx_dst_name.get("station",{}).get("name", "")}</div>', unsafe_allow_html=True)
+info_dst = get_airport_static_data(destination_icao)
+if info_dst:
+    st.sidebar.markdown(f'<div class="airport-label">✈️ {info_dst["name"]}<br>🏙️ {info_dst["city"]}</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
-etd = st.sidebar.text_input("ETD (UTC)", value="12:00")
-eta = st.sidebar.text_input("ETA (UTC)", value="15:30")
+etd = st.sidebar.text_input("ETD (Internal)", value="12:00")
+eta = st.sidebar.text_input("ETA (Internal)", value="15:30")
 fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
 tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
 
 # --- CABECERA ---
+LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon/logotype-v3/image_uploads/d1ea3807-ceaf-486c-aefb-af34155789ba/original.png"
+LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
+
 col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image(LOGO_UP_LEFT, width=250)
-with col_title: st.markdown('<div class="header-style">Flight Support Team | Mission Assessment 2.0</div>', unsafe_allow_html=True)
+with col_title: st.markdown('<div class="header-style">Flight Support Team | Hybrid Mission Assessment</div>', unsafe_allow_html=True)
 
-# --- LOGICA DE EVALUACIÓN PRO ---
+# --- LÓGICA DE RIESGO ---
 def evaluate_risk(wx):
-    if not wx: return False, "No Data"
-    
+    if not wx: return False, {}
     vis = wx.get("visibility", {}).get("miles_float", 10)
     wind_spd = wx.get("wind", {}).get("speed_kts", 0)
     raw = wx.get("raw_text", "").upper()
-    
-    # Análisis de nubes (Ceiling)
-    clouds = wx.get("clouds", [])
-    # Buscamos la capa más baja que sea BKN o OVC
-    ceiling = 10000 # Default alto
-    for layer in clouds:
+    ceiling = 10000
+    for layer in wx.get("clouds", []):
         if layer.get("code") in ["BKN", "OVC"]:
             ceiling = min(ceiling, layer.get("base_feet_agl", 10000))
-            
-    # CRITERIOS DE ALERTA
-    is_crit = (
-        vis < 3 or                  # Visibilidad baja
-        wind_spd > 20 or            # Viento fuerte
-        ceiling < 1000 or           # Techo bajo (LIFR/IFR)
-        any(x in raw for x in ["TS", "SN", "FG", "SQ", "VCTS"]) # Fenómenos peligrosos
-    )
     
+    is_crit = (vis < 3 or wind_spd > 20 or ceiling < 1000 or any(x in raw for x in ["TS", "SN", "FG", "SQ"]))
     return is_crit, {"vis": vis, "wind": wind_spd, "ceiling": ceiling}
 
 # --- EJECUCIÓN ---
-if st.button("Run Advanced Mission Assessment"):
-    wx_data_org = get_wx(origin_icao, fase)
-    wx_data_dst = get_wx(destination_icao, fase)
+if st.button("Run Hybrid Assessment"):
+    wx_org = get_weather_data(origin_icao, fase)
+    wx_dst = get_weather_data(destination_icao, fase)
 
-    if wx_data_org and wx_data_dst:
-        # Mapa (Mismo código anterior)
-        o_lat, o_lon = wx_data_org['station']['geometry']['coordinates'][1], wx_data_org['station']['geometry']['coordinates'][0]
-        d_lat, d_lon = wx_data_dst['station']['geometry']['coordinates'][1], wx_data_dst['station']['geometry']['coordinates'][0]
-        fig = go.Figure(go.Scattergeo(lon=[o_lon, d_lon], lat=[o_lat, d_lat], mode='lines+markers', line=dict(width=2, color='#00d4ff')))
+    if wx_org and wx_dst and info_org and info_dst:
+        # MAPA
+        fig = go.Figure(go.Scattergeo(
+            lon=[info_org["coords"][1], info_dst["coords"][1]], 
+            lat=[info_org["coords"][0], info_dst["coords"][0]], 
+            mode='lines+markers', line=dict(width=2, color='#00d4ff'),
+            marker=dict(size=10, color=['#00d4ff', '#a855f7'], symbol='diamond')
+        ))
         fig.update_layout(geo=dict(showland=True, landcolor="#0a0a0a", bgcolor="rgba(0,0,0,0)"), margin=dict(l=0, r=0, t=0, b=0), height=300, paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, use_container_width=True)
 
-        risk_org, stats_org = evaluate_risk(wx_data_org)
-        risk_dst, stats_dst = evaluate_risk(wx_data_dst)
+        risk_o, stats_o = evaluate_risk(wx_org)
+        risk_d, stats_d = evaluate_risk(wx_dst)
 
         if tipo_reporte == "Executive (Client)":
-            exec_html = f'<div class="executive-card"><h2 style="color:#005fcc; margin:0;">{origin_icao} ➔ {destination_icao}</h2>'
-            exec_html += f'<p><b>Departure:</b> Weather is ' + ("under close monitoring. Expect coordination." if risk_org else "stable and favorable for departure.") + '</p>'
-            exec_html += f'<p><b>Arrival:</b> Forecast is ' + ("showing activity. Ops Team monitoring." if risk_dst else "clear. Seamless arrival reported.") + '</p></div>'
-            st.markdown(exec_html, unsafe_allow_html=True)
-        
-        else:
-            st.markdown("### 🛠 OPS Advanced Technical Assessment")
-            t1, t2 = st.columns(2)
-            
-            for col, wx, icao, time, color, css, risk, stats in zip(
-                [t1, t2], [wx_data_org, wx_data_dst], [origin_icao, destination_icao], 
-                [etd, eta], ["#00d4ff", "#a855f7"], ["tech-card-origin", "tech-card-dest"],
-                [risk_org, risk_dst], [stats_org, stats_dst]
-            ):
-                with col:
-                    status_lbl = '<span style="color:#ff3333; font-weight:bold;">🔴 CRITICAL</span>' if risk else '<span style="color:#00ff00; font-weight:bold;">🟢 NOMINAL</span>'
-                    card_html = f'<div class="{css}">'
-                    card_html += f'<h4 style="color:{color}; margin-bottom:5px;">{icao} | {time}Z</h4>'
-                    card_html += f'<div class="raw-code">{wx.get("raw_text")}</div>'
-                    card_html += f'<div class="data-row"><span>Visibility:</span> <b>{stats["vis"]} SM</b></div>'
-                    card_html += f'<div class="data-row"><span>Sustained Wind:</span> <b>{stats["wind"]} KTS</b></div>'
-                    card_html += f'<div class="data-row"><span>Cloud Ceiling:</span> <b>{stats["ceiling"]} FT</b></div>'
-                    card_html += f'<p style="margin-top:10px;"><b>Risk Status:</b> {status_lbl}</p></div>'
-                    st.markdown(card_html, unsafe_allow_html=True)
-    else:
-        st.error("ICAO not found. Check codes.")
-
-# --- FOOTER ---
-st.markdown(f'<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="160"><p style="color:#333; font-size:0.7em; margin-top:10px;">SYSTEM TIME: {datetime.utcnow().strftime("%H:%M")}Z</p></div>', unsafe_allow_html=True)
+            exec_html = f'<div class="executive-card"><h2 style="color:#005fcc; margin:0;">{info_org["name"]} ➔ {info_dst["name"]}</h2>'
+            exec_html += f'<p style="color:#666; margin-bottom:20px;">{info_org["city"]} to {info_dst["city"]}</p>'
+            exec_html += f'<p><b>Departure:</b> ' + ("Unstable conditions detected. Coordination required." if risk_o else "Weather is ideal and stable for departure.") + '</p>'
+            exec_html += f'<p><b>Arrival:</b> ' + ("Monitoring meteorological activity at destination."
