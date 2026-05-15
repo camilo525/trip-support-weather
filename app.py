@@ -62,13 +62,12 @@ if st.button("RUN FULL MISSION ANALYSIS"):
             altim = wx.get("barometer", {}).get("hg", 0)
             
             ceil = 10000
-            cloud_desc = "Clear Skies"
+            cloud_desc = ", ".join([f"{l['code']} at {l.get('base_feet_agl', 0)}ft" for l in layers])
             if wx.get("clouds"):
                 layers = wx["clouds"]
                 cloud_desc = ", ".join([f"{l['code']} at {l['base_feet_agl']}ft" for l in layers])
                 for l in layers:
-                    if l.get("code") in ["BKN", "OVC"]:
-                        ceil = min(ceil, l.get("base_feet_agl", 10000))
+                   cloud_desc = ", ".join([f"{l['code']} at {l.get('base_feet_agl', 0)}ft" for l in layers])
             
             # Evaluación Lógica
             if "Live" in phase:
