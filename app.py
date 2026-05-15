@@ -135,6 +135,3 @@ if st.button("RUN FULL MISSION ANALYSIS"):
 
     else:
         st.error("❌ Data Sync Failure. Verify ICAO codes or check API Connection.")
-
-    else:
-        st.error("❌ Data Sync Failure. Verify ICAO codes or check API Connection.")
