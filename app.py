@@ -99,7 +99,7 @@ if st.button("RUN FULL MISSION ANALYSIS"):
             <hr style="border:0.5px solid #eee; margin:20px 0;">
             <p><b>Departure ({dep_icao}):</b> {res_dep['status']} — {res_dep['client_msg']}</p>
             <p><b>Arrival ({arr_icao}):</b> {res_arr['status']} — {res_arr['client_msg']}</p>
-            <p style="margin-top:20px; font-size:0.9em; color:#444;"><i>*This report was generated for executive decision-making. Detailed technical data is available for flight crew review below.</i></p>
+            <p style="margin-top:20px; font-size:0.9em; color:#444;"><i>*This report was generated for executive decision-making. Detailed technical data is available below.</i></p>
         </div>""", unsafe_allow_html=True)
 
         # 2. TECHNICAL ANALYSIS (Flight Support Focus)
