@@ -16,7 +16,7 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         margin-bottom: 20px;
     }
-    .airport-label { color: #00d4ff; font-size: 0.85em; font-weight: bold; margin-bottom: 10px; line-height: 1.2; }
+    .airport-label { color: #00d4ff; font-size: 0.85em; font-weight: bold; margin-bottom: 15px; line-height: 1.2; }
     .tech-card-origin { padding: 20px; border-radius: 15px; border: 2px solid #00d4ff; background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; }
     .tech-card-dest { padding: 20px; border-radius: 15px; border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.05); margin-bottom: 20px; }
     .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: transparent; font-size: 0.95em; line-height: 1.4; }
@@ -51,21 +51,19 @@ st.sidebar.title("Trip Configuration")
 
 # ORIGIN
 origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
-wx_org = get_wx(origin_icao, "Flight Day (Live)")
-if wx_org:
-    # Uso de .get() para evitar KeyError
-    name_o = wx_org.get("station", {}).get("name", origin_icao)
-    city_o = wx_org.get("station", {}).get("city", "Unknown City")
-    st.sidebar.markdown(f'<div class="airport-label">📍 {name_o}<br>🏙️ {city_o}</div>', unsafe_allow_html=True)
+wx_org_sidebar = get_wx(origin_icao, "Flight Day (Live)")
+if wx_org_sidebar:
+    name_o = wx_org_sidebar.get("station", {}).get("name", "")
+    if name_o:
+        st.sidebar.markdown(f'<div class="airport-label">✈️ {name_o}</div>', unsafe_allow_html=True)
 
 # DESTINATION
 destination_icao = st.sidebar.text_input("ARRIVAL ICAO", value="KOPF").upper()
-wx_dst = get_wx(destination_icao, "Flight Day (Live)")
-if wx_dst:
-    # Uso de .get() para evitar KeyError
-    name_d = wx_dst.get("station", {}).get("name", destination_icao)
-    city_d = wx_dst.get("station", {}).get("city", "Unknown City")
-    st.sidebar.markdown(f'<div class="airport-label">📍 {name_d}<br>🏙️ {city_d}</div>', unsafe_allow_html=True)
+wx_dst_sidebar = get_wx(destination_icao, "Flight Day (Live)")
+if wx_dst_sidebar:
+    name_d = wx_dst_sidebar.get("station", {}).get("name", "")
+    if name_d:
+        st.sidebar.markdown(f'<div class="airport-label">✈️ {name_d}</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
 etd = st.sidebar.text_input("ETD (UTC)", value="12:00")
@@ -95,7 +93,7 @@ def get_coords(wx):
 
 # --- EJECUCIÓN PRINCIPAL ---
 if st.button("Run Mission Assessment"):
-    # Re-fetch con la fase seleccionada para el reporte real
+    # Re-fetch con la fase seleccionada
     wx_data_org = get_wx(origin_icao, fase)
     wx_data_dst = get_wx(destination_icao, fase)
 
@@ -122,18 +120,10 @@ if st.button("Run Mission Assessment"):
             exec_html += f'<p><b>Arrival:</b> {generate_client_text(wx_data_dst, destination_icao, "arr")}</p></div>'
             st.markdown(exec_html, unsafe_allow_html=True)
         else:
-            # Reporte Técnico (se mantiene tu lógica)
+            # Reporte Técnico
             c1, c2 = st.columns(2)
             for col, wx, icao, time, color, css in zip([c1, c2], [wx_data_org, wx_data_dst], [origin_icao, destination_icao], [etd, eta], ["#00d4ff", "#a855f7"], ["tech-card-origin", "tech-card-dest"]):
                 with col:
                     vis = wx.get("visibility", {}).get("miles_float", 10)
                     status = '🔴 ALERT' if (any(x in wx.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis < 3) else '🟢 STABLE'
-                    st.markdown(f'<div class="{css}"><h4 style="color:{color};">{icao} @ {time}Z</h4><p class="raw-code">{wx["raw_text"]}</p><hr style="border:0.5px solid #333;"><p><b>Vis:</b> {vis} SM | <b>Status:</b> {status}</p></div>', unsafe_allow_html=True)
-    else:
-        st.error("ICAO not found or API error. Check codes.")
-
-# --- FOOTER ---
-footer = f'<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="160">'
-footer += f'<p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p>'
-footer += f'<p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime("%H:%M")}Z</p></div>'
-st.markdown(footer, unsafe_allow_html=True)
+                    st.markdown(f'<div class="{css}"><h4 style="color:{color};
