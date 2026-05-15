@@ -39,7 +39,7 @@ def get_ops_data(icao, phase):
     return None
 
 # --- SIDEBAR CONFIG ---
-st.sidebar.image("https://static.wixstatic.com/media/5f5db0_453d7f17105a415a995e86d080031853~mv2.png/v1/fill/w_316,h_152,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Logotipo%20Thrust%20Aviation_edited.png", width=220)
+st.sidebar.image("", width=220)
 st.sidebar.title("Flight Support Team")
 dep_icao = st.sidebar.text_input("DEPARTURE (ICAO)", "KTEB").upper()
 arr_icao = st.sidebar.text_input("ARRIVAL (ICAO)", "KMIA").upper()
