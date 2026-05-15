@@ -22,12 +22,11 @@ def get_ops_data(icao, phase):
     icao = icao.strip().upper()
     endpoint = "metar" if phase == "Live Ops (METAR)" else "taf"
     try:
-        r_wx = requests.get(f"https://api.checkwx.com/{endpoint}/{icao}/decoded", headers={"X-API-Key": CK_KEY}, timeout=7).json()
-        r_ap = requests.get(f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao}", 
+        r_wx = requests.get("https://api.checkwx.com/" + endpoint + "/" + icao + "/decoded", headers={"X-API-Key": CK_KEY}, timeout=7).json()
+        r_ap = requests.get("https://aerodatabox.p.rapidapi.com/airports/icao/" + icao, 
                             headers={"X-RapidAPI-Key": AD_KEY, "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"}, timeout=7).json()
         
         wx = r_wx["data"][0] if r_wx.get("results", 0) > 0 else None
-        # Fail-safe para info de aeropuerto
         ap_name = r_ap.get("name", icao) if isinstance(r_ap, dict) else icao
         ap_city = r_ap.get("municipalityName", "Loc") if isinstance(r_ap, dict) else "Loc"
         ap = {"name": ap_name, "city": ap_city}
@@ -38,8 +37,7 @@ def get_ops_data(icao, phase):
 st.sidebar.header("✈️ Mission Briefing")
 o_icao = st.sidebar.text_input("ORIGIN ICAO", "KTEB").upper()
 d_icao = st.sidebar.text_input("DESTINATION ICAO", "KMIA").upper()
-fase = st.sidebar.selectbox("Analysis Window", 
-                            ["Live Ops (METAR)", "24h Pre-Flight (TAF)", "48h Outlook (Trends)"])
+fase = st.sidebar.selectbox("Analysis Window", ["Live Ops (METAR)", "24h Pre-Flight (TAF)", "48h Outlook (Trends)"])
 
 if st.button("GENERATE OPERATIONAL ASSESSMENT"):
     with st.spinner("Executing weather algorithms..."):
@@ -51,8 +49,6 @@ if st.button("GENERATE OPERATIONAL ASSESSMENT"):
             raw = wx.get("raw_text", "").upper()
             vis = wx.get("visibility", {}).get("miles_float", 10)
             wind = wx.get("wind", {}).get("speed_kts", 0)
-            
-            # Cálculo de Ceiling (Capa más baja de BKN o OVC)
             ceiling = 10000
             for layer in wx.get("clouds", []):
                 if layer.get("code") in ["BKN", "OVC"]:
@@ -64,7 +60,7 @@ if st.button("GENERATE OPERATIONAL ASSESSMENT"):
             elif phase == "24h Pre-Flight (TAF)":
                 is_crit = (vis < 5 or wind > 20 or ceiling < 1500 or any(x in raw for x in ["PROB", "TEMPO", "TS"]))
                 msg = "🟡 MONITORING - TAF REVISION" if is_crit else "🟢 STABLE - PLAN CONFIRMED"
-            else: # 48h Outlook
+            else:
                 is_crit = any(x in raw for x in ["TS", "DZ", "RA", "SN", "VCTS"])
                 msg = "🔵 ADVISORY - TREND ANALYSIS" if is_crit else "🟢 CLEAR - PROCEED"
             return msg, vis, wind, ceiling
@@ -73,30 +69,27 @@ if st.button("GENERATE OPERATIONAL ASSESSMENT"):
         st_d, v_d, wd_d, c_d = advanced_eval(w_d, fase)
 
         # --- REPORTE EJECUTIVO ---
-        st.markdown(f"""<div class="vip-report">
-            <h2 style="margin:0;">{a_o['name']} ➔ {a_d['name']}</h2>
-            <p style="color:#005fcc; font-weight:bold;">{fase} | ID: {datetime.utcnow().strftime('%y%m%d-%H%M')}Z</p>
-            <hr>
-            <p style="font-size:1.1em;"><b>Departure:</b> {st_o}</p>
-            <p style="font-size:1.1em;"><b>Arrival:</b> {st_d}</p>
-        </div>""", unsafe_allow_html=True)
+        exec_html = '<div class="vip-report"><h2 style="margin:0;">' + a_o['name'] + ' ➔ ' + a_d['name'] + '</h2>'
+        exec_html += '<p style="color:#005fcc; font-weight:bold;">' + fase + ' | ID: ' + datetime.utcnow().strftime('%y%m%d-%H%M') + 'Z</p><hr>'
+        exec_html += '<p style="font-size:1.1em;"><b>Departure:</b> ' + st_o + '</p>'
+        exec_html += '<p style="font-size:1.1em;"><b>Arrival:</b> ' + st_d + '</p></div>'
+        st.markdown(exec_html, unsafe_allow_html=True)
 
         st.markdown("### 🛠 Technical Specifications")
         c1, c2 = st.columns(2)
         
         for col, icao, status, wx, v, wd, ce, color in zip([c1, c2], [o_icao, d_icao], [st_o, st_d], [w_o, w_d], [v_o, v_d], [wd_o, wd_d], [c_o, c_d], ["#00d4ff", "#a855f7"]):
             with col:
-                # Color del badge según estatus
                 b_color = "#ff3333" if "CRITICAL" in status else "#ffcc00" if "MONITORING" in status else "#0080ff" if "ADVISORY" in status else "#00ff00"
+                txt_c = "#000" if b_color == "#ffcc00" else "#fff"
                 
-                col.markdown(f"""<div class="status-card" style="border-top: 4px solid {color}">
-                    <span class="window-badge" style="background:{b_color}; color:{'#000' if b_color=='#ffcc00' else '#fff'};">{status}</span>
-                    <h4 style="margin:0; color:{color};">{icao} Assessment</h4>
-                    <div class="raw">{wx['raw_text']}</div>
-                    <div style="display:flex; gap:15px; margin-top:10px; font-size:0.9em;">
-                        <span><b>VIS:</b> {v} SM</span>
-                        <span><b>WIND:</b> {wd} KTS</span>
-                        <span><b>CEIL:</b> {ce} FT</span>
-                    </div>
-                </div>""", unsafe
-                
+                card = '<div class="status-card" style="border-top: 4px solid ' + color + '">'
+                card += '<span class="window-badge" style="background:' + b_color + '; color:' + txt_c + ';">' + status + '</span>'
+                card += '<h4 style="margin:0; color:' + color + ';">' + icao + ' Assessment</h4>'
+                card += '<div class="raw">' + wx['raw_text'] + '</div>'
+                card += '<div style="display:flex; gap:15px; margin-top:10px; font-size:0.9em;">'
+                card += '<span><b>VIS:</b> ' + str(v) + ' SM</span><span><b>WIND:</b> ' + str(wd) + ' KTS</span>'
+                card += '<span><b>CEIL:</b> ' + str(ce) + ' FT</span></div></div>'
+                st.markdown(card, unsafe_allow_html=True)
+    else:
+        st.error("Data Sync Failure: Verify ICAO or API key status.")
