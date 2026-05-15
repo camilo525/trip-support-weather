@@ -49,7 +49,7 @@ def get_wx(icao, phase):
 # --- SIDEBAR & FETCH ---
 st.sidebar.title("Trip Configuration")
 
-# ORIGIN
+# ORIGIN INPUT
 origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
 wx_org_sidebar = get_wx(origin_icao, "Flight Day (Live)")
 if wx_org_sidebar:
@@ -57,7 +57,7 @@ if wx_org_sidebar:
     if name_o:
         st.sidebar.markdown(f'<div class="airport-label">✈️ {name_o}</div>', unsafe_allow_html=True)
 
-# DESTINATION
+# DESTINATION INPUT
 destination_icao = st.sidebar.text_input("ARRIVAL ICAO", value="KOPF").upper()
 wx_dst_sidebar = get_wx(destination_icao, "Flight Day (Live)")
 if wx_dst_sidebar:
@@ -67,4 +67,70 @@ if wx_dst_sidebar:
 
 st.sidebar.markdown("---")
 etd = st.sidebar.text_input("ETD (UTC)", value="12:00")
-eta = st.sidebar.text_input("ETA (UTC)", value="15:3
+eta = st.sidebar.text_input("ETA (UTC)", value="15:30")
+fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
+tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
+
+# --- CABECERA ---
+col_logo, col_title = st.columns([1, 4])
+with col_logo: st.image(LOGO_UP_LEFT, width=250)
+with col_title: st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
+
+# --- LÓGICA AUXILIAR ---
+def generate_client_text(wx, icao, type_flight="dep"):
+    raw = wx.get("raw_text", "").upper()
+    vis = wx.get("visibility", {}).get("miles_float", 10)
+    crit = any(x in raw for x in ["TS", "SN", "FG", "DZ", "RA", "SQ"]) or vis < 3
+    if type_flight == "dep":
+        status_text = "unstable. Evaluating windows." if crit else "ideal. Stable window confirmed."
+    else:
+        status_text = "under monitoring due to activity." if crit else "favorable. Seamless arrival reported."
+    return f"Weather analysis for departure from <b>{icao}</b> is {status_text}"
+
+def get_coords(wx):
+    try:
+        c = wx.get('station', {}).get('geometry', {}).get('coordinates', [None, None])
+        return c[1], c[0]
+    except: return None, None
+
+# --- EJECUCIÓN PRINCIPAL ---
+if st.button("Run Mission Assessment"):
+    wx_data_org = get_wx(origin_icao, fase)
+    wx_data_dst = get_wx(destination_icao, fase)
+
+    if wx_data_org and wx_data_dst:
+        # MAPA
+        o_lat, o_lon = get_coords(wx_data_org)
+        d_lat, d_lon = get_coords(wx_data_dst)
+        if o_lat and d_lat:
+            fig = go.Figure(go.Scattergeo(
+                lon=[o_lon, d_lon], lat=[o_lat, d_lat],
+                mode='lines+markers', line=dict(width=2, color='#00d4ff'),
+                marker=dict(size=10, color=['#00d4ff', '#a855f7'])
+            ))
+            fig.update_layout(geo=dict(showland=True, landcolor="#0a0a0a", bgcolor="rgba(0,0,0,0)"), 
+                              margin=dict(l=0, r=0, t=0, b=0), height=400, paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig, use_container_width=True)
+
+        if tipo_reporte == "Executive (Client)":
+            name_o_full = wx_data_org.get("station", {}).get("name", origin_icao)
+            name_d_full = wx_data_dst.get("station", {}).get("name", destination_icao)
+            
+            exec_html = f'<div class="executive-card"><h2 style="color:#005fcc; margin:0;">{name_o_full} ➔ {name_d_full}</h2>'
+            exec_html += f'<p><b>Departure:</b> {generate_client_text(wx_data_org, origin_icao, "dep")}</p>'
+            exec_html += f'<p><b>Arrival:</b> {generate_client_text(wx_data_dst, destination_icao, "arr")}</p></div>'
+            st.markdown(exec_html, unsafe_allow_html=True)
+        else:
+            # REPORTE TÉCNICO
+            c1, c2 = st.columns(2)
+            
+            # ORIGIN CARD
+            with c1:
+                vis_o = wx_data_org.get("visibility", {}).get("miles_float", 10)
+                raw_o = wx_data_org.get("raw_text", "")
+                status_o = '🔴 ALERT' if (any(x in raw_o.upper() for x in ["TS", "SN", "FG", "SQ"]) or vis_o < 3) else '🟢 STABLE'
+                
+                card_o = f'<div class="tech-card-origin"><h4 style="color:#00d4ff;">{origin_icao} @ {etd}Z</h4>'
+                card_o += f'<p class="raw-code">{raw_o}</p>'
+                card_o += f'<hr style="border:0.5px solid #333;"><p><b>Vis:</b> {vis_o} SM | <b>Status:</b> {status_o}</p></div>'
+            
