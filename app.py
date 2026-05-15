@@ -1,155 +1,175 @@
 import streamlit as st
 import requests
-import plotly.graph_objects as go
-from datetime import datetime
 
-# 1. PAGE CONFIGURATION
-st.set_page_config(page_title="Flight Support Team Weather Tool", page_icon="✈️", layout="wide")
+# --- PAGE CONFIGURATION ---
+st.set_page_config(page_title="VIP Milestone Console", layout="centered")
 
-# --- PRO DESIGN ---
+# --- API CONFIGURATION ---
+# Tu API Key de AeroDataBox (RapidAPI)
+API_KEY = "d6ae47d1-8477-42c4-9f26-dc4e7939a81b"
+
+# --- UI DESIGN (CONSOLE INTERFACE) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #000000 !important; color: #FFFFFF !important; }
-    .header-style {
-        font-size: 24px; font-weight: bold;
-        background: -webkit-linear-gradient(#00d4ff, #005fcc);
+    .stApp { background-color: #050505; color: #ffffff; }
+    .main-title {
+        font-size: 32px; font-weight: bold;
+        background: -webkit-linear-gradient(#cb2d42, #8e1e2d);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        margin-bottom: 20px;
+        text-align: center; margin-bottom: 30px; letter-spacing: 2px;
     }
-    .tech-card-origin { padding: 20px; border-radius: 15px; border: 2px solid #00d4ff; background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; }
-    .tech-card-dest { padding: 20px; border-radius: 15px; border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.05); margin-bottom: 20px; }
-    .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: transparent; font-size: 1.1em; line-height: 1.5; }
-    
-    .stButton>button {
-        background: linear-gradient(45deg, #005fcc, #00d4ff); color: white !important;
-        font-weight: bold; border: none; border-radius: 10px; height: 3.5em; width: 100%;
-        transition: 0.3s;
+    div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"], div[data-baseweb="checkbox"], div[data-baseweb="radio"] { 
+        background-color: #111 !important; border: 1px solid #333 !important; 
     }
-
-    /* TOOLKIT BUTTONS DESIGN */
-    .tool-container {
-        display: flex; gap: 15px; margin-top: 25px; margin-bottom: 25px; flex-wrap: wrap;
-    }
-    .tool-btn {
-        flex: 1; min-width: 200px; padding: 15px; border-radius: 12px;
-        text-align: center; text-decoration: none; font-weight: bold; font-size: 0.9em;
-        transition: 0.3s; border: 1px solid rgba(255,255,255,0.1);
-    }
-    .btn-sat { background: rgba(0, 212, 255, 0.1); color: #00d4ff !important; border-color: #00d4ff; }
-    .btn-map { background: rgba(168, 85, 247, 0.1); color: #a855f7 !important; border-color: #a855f7; }
-    .btn-notam { background: rgba(255, 204, 0, 0.1); color: #ffcc00 !important; border-color: #ffcc00; }
-    
-    .tool-btn:hover { transform: translateY(-3px); background: rgba(255,255,255,0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-
-    .executive-card { background: rgba(255,255,255,0.03); padding: 35px; border-radius: 20px; border-left: 6px solid #00d4ff; }
-    .status-stable { color: #00ff00; font-weight: bold; }
-    .status-alert { color: #ff0000; font-weight: bold; text-decoration: underline; }
-    input { background-color: #0a0a0a !important; border: 1px solid #333333 !important; color: #00d4ff !important; }
-    .footer-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 40px 0px; margin-top: 30px; border-top: 1px solid #222222; }
+    input, textarea, select { color: #cb2d42 !important; }
+    label { color: #aaa !important; font-size: 14px !important; text-transform: uppercase; }
     </style>
     """, unsafe_allow_html=True)
 
-LOGO_UP_LEFT = "https://images.teamtailor-cdn.com/images/s3/teamtailor-na-maroon/logotype-v3/image_uploads/d1ea3807-ceaf-486c-aefb-af34155789ba/original.png" 
-LOGO_BOTTOM_CENTER = "https://static.wixstatic.com/media/5f5db0_d7471efb590b4734a38048043fb3b2c1~mv2.png/v1/fill/w_300,h_300,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/FBO%20Audit%20Logo%20Silver.png"
-API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
+st.markdown('<div class="main-title">VIP MILESTONE CONSOLE</div>', unsafe_allow_html=True)
 
-col_logo, col_title = st.columns([1, 8])
-with col_logo: st.image(LOGO_UP_LEFT, width=300)
-with col_title: st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
+# --- BACKUP AIRPORT DATABASE ---
+AIRPORT_DB = {
+    "KTEB": ["Teterboro", "Teterboro", "NJ", "US/Eastern"],
+    "KOPF": ["Opa-Locka Exec", "Miami", "FL", "US/Eastern"],
+    "KASE": ["Aspen/Pitkin Co", "Aspen", "CO", "US/Mountain"],
+    "KVNY": ["Van Nuys", "Los Angeles", "CA", "US/Pacific"]
+}
 
-# 3. SIDEBAR
-st.sidebar.title("Trip Details")
-origin = st.sidebar.text_input("DEPARTURE ICAO", value="").upper()
-etd = st.sidebar.text_input("ETD (UTC Internal)", value="")
-destination = st.sidebar.text_input("ARRIVAL ICAO", value="").upper()
-eta = st.sidebar.text_input("ETA (UTC Internal)", value="")
-fase = st.sidebar.selectbox("Assessment Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
-tipo_reporte = st.sidebar.radio("REPORT MODE", ["Executive (Client)", "Technical (Internal)"])
+WEATHER_ICONS = {"Sunny": "☼", "Partly Cloudy": "☁", "Cloudy": "☁", "Rainy": "☂", "Thunderstorm": "⚡", "Snowy": "❄", "Foggy": "░"}
 
-def get_wx(icao, phase):
-    stype = "metar" if phase == "Flight Day (Live)" else "taf"
-    url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
-    headers = {"X-API-Key": API_KEY}
+# --- DATA FETCHING LOGIC ---
+def get_airport_details(icao):
+    if not icao or len(icao) < 3:
+        return [icao, "City", "ST", "UTC"]
+    
+    url = f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao}"
+    headers = {
+        "X-RapidAPI-Key": API_KEY,
+        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
+    }
+    
     try:
-        r = requests.get(url, headers=headers)
-        data = r.json()
-        if data.get("results", 0) > 0: return data["data"][0]
-        return None
-    except: return None
-
-def generate_client_text(wx, icao, type="dep"):
-    raw = wx.get("raw_text", "").upper()
-    vis = wx.get("visibility", {}).get("miles_float", 10)
-    is_critical = any(x in raw for x in ["TS", "SN", "FG", "DZ", "RA", "SQ"]) or vis < 3
-    if type == "dep":
-        if is_critical:
-            return f"The Operations Team is currently analyzing weather conditions for your departure from {icao} and we are reporting if there are any issues. We are evaluating the most efficient window for your day of travel."
-        else:
-            return f"Meteorological analysis for your departure from {icao} indicates ideal conditions. The Operations Team is monitoring conditions and confirms a seamless process."
-    else:
-        if is_critical:
-            return f"The Operations Team is currently analyzing weather conditions for your arrival at {icao} and we are reporting if there are any issues due to forecasted meteorological activity."
-        else:
-            return f"The terminal forecast for your arrival at {icao} remains favorable. The Operations Team is monitoring conditions and we are reporting a comfortable arrival."
-
-def get_coords(wx):
-    try: return wx['station']['geometry']['coordinates'][1], wx['station']['geometry']['coordinates'][0]
+        response = requests.get(url, headers=headers, timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            name = data.get('shortName') or data.get('name') or icao
+            city = data.get('municipalityName', 'Unknown City')
+            country = data.get('countryCode', 'US')
+            tz_raw = data.get('timeZone', 'UTC')
+            
+            # Simplificación de zona horaria para el reporte VIP
+            tz = "UTC"
+            if "New_York" in tz_raw or "Miami" in tz_raw: tz = "EST"
+            elif "Chicago" in tz_raw or "Dallas" in tz_raw: tz = "CST"
+            elif "Denver" in tz_raw or "Phoenix" in tz_raw: tz = "MST"
+            elif "Los_Angeles" in tz_raw: tz = "PST"
+            else: tz = tz_raw.split('/')[-1].replace('_', ' ')
+                
+            return [name, city, country, tz]
     except:
-        try: return wx['geometry']['coordinates'][1], wx['geometry']['coordinates'][0]
-        except: return None, None
+        pass
+    
+    # Si la API falla, busca en el diccionario local
+    return AIRPORT_DB.get(icao, [icao, "Unknown City", "Unknown", "UTC"])
 
-if st.button("Run Mission Assessment"):
-    wx_org = get_wx(origin, fase)
-    wx_dst = get_wx(destination, fase)
+# --- 1. ITINERARY INPUTS ---
+st.subheader("📍 Flight Itinerary")
+col1, col2 = st.columns(2)
 
-    if wx_org and wx_dst:
-        o_lat, o_lon = get_coords(wx_org)
-        d_lat, d_lon = get_coords(wx_dst)
-        
-        if o_lat is not None and d_lat is not None:
-            fig = go.Figure()
-            fig.add_trace(go.Scattergeo(
-                lon = [o_lon, d_lon], lat = [o_lat, d_lat],
-                mode = 'lines+markers+text', text = [origin, destination],
-                textposition = "top center", line = dict(width = 3, color = '#00d4ff'),
-                marker = dict(size = 12, color = ['#00d4ff', '#a855f7'], symbol = 'diamond'),
-                textfont = dict(color = '#00d4ff', size = 14)
-            ))
-            fig.update_layout(
-                showlegend = False,
-                geo = dict(
-                    showland = True, landcolor = "#0a0a0a",
-                    showocean = True, oceancolor = "#000000",
-                    showlakes = True, lakecolor = "#002b4d",
-                    showcountries = True, countrycolor = "#888888",
-                    showsubunits = True, subunitcolor = "#005fcc",
-                    resolution = 50, projection_type = 'equirectangular',
-                    bgcolor = "rgba(0,0,0,0)"
-                ),
-                margin = dict(l=0, r=0, t=0, b=0), height = 450, paper_bgcolor = "rgba(0,0,0,0)"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+with col1:
+    origin_icao = st.text_input("Departure ICAO", value="KTEB").upper()
+    dep_name, dep_city, dep_state, dep_tz = get_airport_details(origin_icao)
+    st.caption(f"✨ {dep_name} | {dep_city}, {dep_state}")
+    dep_fbo = st.text_input("Departure FBO", value="Signature Flight Support")
+    dep_time = st.text_input("Departure Time", value="10:00 AM")
+    ramp_dep = st.radio("Dep. Ramp Access", ["Authorized", "Not Authorized"], horizontal=True, key="r_dep")
 
-        if tipo_reporte == "Executive (Client)":
-            st.markdown(f'<div class="executive-card"><h2 style="color:#00d4ff;">Flight Briefing: {origin} ➔ {destination}</h2><p><b>Departure:</b> {generate_client_text(wx_org, origin, "dep")}</p><p><b>Arrival:</b> {generate_client_text(wx_dst, destination, "arr")}</p></div>', unsafe_allow_html=True)
-        else:
-            # --- TECHNICAL TOOLKIT ---
-            st.markdown("### 🛠 OPS Toolkit")
-            st.markdown(f"""
-                <div class="tool-container">
-                    <a href="https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G16&band=11&length=24" target="_blank" class="tool-btn btn-sat">🛰 LIVE SATELLITE (GOES-16)</a>
-                    <a href="https://www.weather.gov/forecastmaps/" target="_blank" class="tool-btn btn-map">🗺 NWS FORECAST MAPS</a>
-                    <a href="https://notams.aim.faa.gov/notamSearch/" target="_blank" class="tool-btn btn-notam">🔎 FAA NOTAM SEARCH</a>
-                </div>
-            """, unsafe_allow_html=True)
+with col2:
+    dest_icao = st.text_input("Arrival ICAO", value="KOPF").upper()
+    arr_name, arr_city, arr_state, arr_tz = get_airport_details(dest_icao)
+    st.caption(f"✨ {arr_name} | {arr_city}, {arr_state}")
+    arr_fbo = st.text_input("Arrival FBO", value="Jet Aviation")
+    arr_time = st.text_input("Arrival Time", value="01:30 PM")
+    ramp_arr = st.radio("Arr. Ramp Access", ["Authorized", "Not Authorized"], horizontal=True, key="r_arr")
 
-            c1, c2 = st.columns(2)
-            for col, wx, icao, time, color, css in zip([c1, c2], [wx_org, wx_dst], [origin, destination], [etd, eta], ["#00d4ff", "#a855f7"], ["tech-card-origin", "tech-card-dest"]):
-                with col:
-                    vis = wx.get("visibility", {}).get("miles_float", 10)
-                    is_crit = any(x in wx.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis < 3
-                    status = '<span class="status-alert">🔴 Alert</span>' if is_crit else '<span class="status-stable">🟢 Stable</span>'
-                    st.markdown(f'<div class="{css}"><h4 style="color:{color};">{icao} @ {time}Z</h4><p class="raw-code">{wx["raw_text"]}</p><hr style="border: 0.5px solid #333;"><p><b>Vis:</b> {vis} SM | <b>Status:</b> {status}</p></div>', unsafe_allow_html=True)
-    else: st.error("ICAO not found. Check codes.")
+milestone = st.selectbox("Current Milestone", [
+    "Trip Coordination", 
+    "Repositioning Update", 
+    "FBO Arrival & Boarding Coordination", 
+    "Departure & Enroute Monitoring"
+])
 
-st.markdown(f'<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="180"><p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p><p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime("%H:%M")}Z</p></div>', unsafe_allow_html=True)
+# --- 2. WEATHER & 3. SERVICES (Manteniendo tu estructura) ---
+st.subheader("🌫️ Weather & ⚙️ Services")
+cw1, cw2 = st.columns(2)
+with cw1:
+    d_icon_k = st.selectbox("Dep WX", list(WEATHER_ICONS.keys()))
+    dep_wx_msg = st.text_input("Dep Brief", value="Visual conditions")
+with cw2:
+    a_icon_k = st.selectbox("Arr WX", list(WEATHER_ICONS.keys()))
+    arr_wx_msg = st.text_input("Arr Brief", value="Standard arrival")
+
+s_pets = st.checkbox("Pets")
+s_catering = st.checkbox("Catering")
+s_ground = st.checkbox("Ground Transportation")
+
+# --- 4. GENERATOR FUNCTION (ESTRUCTURA SEGURA) ---
+def generate_newsletter_html():
+    BRAND_COLOR = "#cb2d42"
+    DARK_BAR = "#282522"
+    
+    # Mapeo de mensajes según Milestone
+    msg_map = {
+        "Trip Coordination": "Please find attached the updated trip sheet reflecting the confirmed revisions.",
+        "Repositioning Update": "The aircraft is currently in its repositioning phase, operations are on track.",
+        "FBO Arrival & Boarding Coordination": f"Aircraft is ready at {dep_fbo}. Crew is standing by for boarding.",
+        "Departure & Enroute Monitoring": "The aircraft is preparing for departure. Monitoring flight progress."
+    }
+
+    # Estilos para Ramp Access
+    def r_tag(status):
+        c = BRAND_COLOR if status == "Authorized" else "#999"
+        return f'<div style="font-size:8px; color:{c}; font-weight:800; margin-top:5px;">• PLANE-SIDE: <b>{status.upper()}</b></div>'
+
+    html = f"""
+    <div style="font-family:Arial; max-width:550px; border:1px solid {DARK_BAR}; margin:auto; background:#fff;">
+        <div style="background:{DARK_BAR}; padding:35px 20px; text-align:center;">
+            <h2 style="color:#fff; margin:0; font-size:15px; letter-spacing:3px;">{milestone.upper()}</h2>
+        </div>
+        <div style="padding:35px; color:#333;">
+            <div style="text-align:center; margin-bottom:30px; background:#f9f9f9; padding:25px; border-radius:12px;">
+                <span style="font-size:32px; font-weight:800;">{origin_icao}</span> 
+                <span style="color:{BRAND_COLOR}; font-size:20px; margin:0 15px;">➤</span> 
+                <span style="font-size:32px; font-weight:800;">{dest_icao}</span>
+                <div style="font-size:12px; color:#666; margin-top:8px; font-weight:600;">{dep_city.upper()} TO {arr_city.upper()}</div>
+            </div>
+            <p style="font-size:15px; line-height:1.5; color:#444; text-align:center;">{msg_map[milestone]}</p>
+            
+            <table width="100%" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
+                <tr>
+                    <td style="width:50%; vertical-align:top; border-right:1px solid #eee; padding-right:15px;">
+                        <b style="color:{BRAND_COLOR}; font-size:10px;">DEPARTURE</b><br>
+                        <b style="font-size:16px;">{dep_time} <span style="font-size:11px; color:#666; font-weight:400;">({dep_tz})</span></b><br>
+                        <div style="font-size:12px;">FBO: {dep_fbo}</div>
+                        {r_tag(ramp_dep)}
+                    </td>
+                    <td style="width:50%; vertical-align:top; padding-left:15px; text-align:right;">
+                        <b style="color:{BRAND_COLOR}; font-size:10px;">ARRIVAL</b><br>
+                        <b style="font-size:16px;">{arr_time} <span style="font-size:11px; color:#666; font-weight:400;">({arr_tz})</span></b><br>
+                        <div style="font-size:12px;">FBO: {arr_fbo}</div>
+                        {r_tag(ramp_arr)}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div style="background:{DARK_BAR}; padding:15px; text-align:center; font-size:10px; color:#fff;">VIP OPERATIONAL UPDATE | PRIVATE AVIATION</div>
+    </div>
+    """
+    return html
+
+# --- 5. ACTION ---
+st.markdown("---")
+if st.button("Generate Executive Report"):
+    report_html = generate_newsletter_html()
+    st.components.v1.html(report_html, height=800)
