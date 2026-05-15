@@ -3,73 +3,69 @@ import requests
 import plotly.graph_objects as go
 from datetime import datetime
 
-st.set_page_config(page_title="Ops Tool v3.4", layout="wide")
+st.set_page_config(page_title="Ops Tool v4.0", layout="wide")
 
-st.markdown("""
-    <style>
+# --- ESTILOS COMPACTOS ---
+st.markdown("""<style>
     .stApp { background-color: #000; color: #fff; }
-    .header-style { font-size: 24px; font-weight: bold; color: #00d4ff; margin-bottom: 20px; }
-    .tech-card-origin { padding: 15px; border-radius: 10px; border: 1px solid #00d4ff; background: rgba(0,212,255,0.05); margin-bottom: 10px; }
-    .tech-card-dest { padding: 15px; border-radius: 10px; border: 1px solid #a855f7; background: rgba(168,85,247,0.05); margin-bottom: 10px; }
-    .raw-code { font-family: monospace; color: #0f0; background: #000; padding: 8px; font-size: 0.8em; border: 1px solid #333; }
-    .executive-card { background: #fff; padding: 25px; border-radius: 15px; border-left: 5px solid #00d4ff; color: #000; }
-    </style>
-    """, unsafe_allow_html=True)
+    .status-card { padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
+    .raw { font-family: monospace; color: #0f0; background: #111; padding: 5px; font-size: 0.75em; }
+    .vip-report { background: #fff; padding: 20px; border-radius: 10px; color: #000; border-left: 10px solid #00d4ff; }
+</style>""", unsafe_allow_html=True)
 
 CK_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 AD_KEY = "d6ae47d1-8477-42c4-9f26-dc4e7939a81b"
 
-def get_wx(icao, phase):
-    s = "metar" if phase == "Flight Day (Live)" else "taf"
+def get_data(icao, phase):
     try:
-        r = requests.get(f"https://api.checkwx.com/{s}/{icao.strip()}/decoded", headers={"X-API-Key": CK_KEY}, timeout=7)
-        d = r.json()
-        return d["data"][0] if d.get("results", 0) > 0 else None
-    except: return None
+        s = "metar" if "Live" in phase else "taf"
+        r_wx = requests.get(f"https://api.checkwx.com/{s}/{icao}/decoded", headers={"X-API-Key": CK_KEY}, timeout=5).json()
+        r_ap = requests.get(f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao}", 
+                            headers={"X-RapidAPI-Key": AD_KEY, "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"}, timeout=5).json()
+        return r_wx["data"][0], r_ap
+    except: return None, None
 
-def get_ap(icao):
-    try:
-        r = requests.get(f"https://aerodatabox.p.rapidapi.com/airports/icao/{icao.strip()}", 
-                         headers={"X-RapidAPI-Key": AD_KEY, "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"}, timeout=7)
-        if r.status_code == 200:
-            d = r.json()
-            return {"n": d.get("name", icao), "lat": d.get("location", {}).get("lat", 0), "lon": d.get("location", {}).get("lon", 0)}
-    except: pass
-    return {"n": icao, "lat": 0, "lon": 0}
+# --- UI SIDEBAR ---
+o_icao = st.sidebar.text_input("DEP", "KTEB").upper()
+d_icao = st.sidebar.text_input("ARR", "KMIA").upper()
+fase = st.sidebar.selectbox("Window", ["Live", "24h", "48h"])
 
-st.sidebar.title("Settings")
-origin = st.sidebar.text_input("Origin", "KTEB").upper()
-dest = st.sidebar.text_input("Destination", "KMIA").upper()
-fase = st.sidebar.selectbox("Window", ["Flight Day (Live)", "24h Pre-Flight", "48h Outlook"])
-tipo = st.sidebar.radio("Mode", ["Executive", "Technical"])
+if st.button("EXECUTE MISSION ASSESSMENT"):
+    w_o, a_o = get_data(o_icao, fase)
+    w_d, a_d = get_data(d_icao, fase)
 
-st.markdown('<div class="header-style">Flight Support | Mission Assessment</div>', unsafe_allow_html=True)
+    if w_o and w_d:
+        # --- LÓGICA DE ICONOS Y STATUS ---
+        def eval_ops(w):
+            v = w.get("visibility", {}).get("miles_float", 10)
+            wd = w.get("wind", {}).get("speed_kts", 0)
+            c = 10000
+            for l in w.get("clouds", []):
+                if l.get("code") in ["BKN", "OVC"]: c = min(c, l.get("base_feet_agl", 10000))
+            is_crit = (v < 3 or wd > 20 or c < 1000 or any(x in w["raw_text"].upper() for x in ["TS", "SN", "FG"]))
+            return "🔴 CRITICAL" if is_crit else "🟢 NOMINAL", v, wd, c
 
-if st.button("RUN ASSESSMENT"):
-    with st.spinner("Loading..."):
-        info_o, info_d = get_ap(origin), get_ap(dest)
-        wx_o = get_wx(origin, fase) or {"raw_text": "No METAR", "visibility": {"miles_float": 10}, "wind": {"speed_kts": 0}}
-        wx_d = get_wx(dest, fase) or {"raw_text": "No METAR", "visibility": {"miles_float": 10}, "wind": {"speed_kts": 0}}
+        st_o, v_o, wd_o, c_o = eval_ops(w_o)
+        st_d, v_d, wd_d, c_d = eval_ops(w_d)
 
-    fig = go.Figure(go.Scattergeo(lat=[info_o["lat"], info_d["lat"]], lon=[info_o["lon"], info_d["lon"]], mode='lines+markers'))
-    fig.update_layout(geo=dict(showland=True, landcolor="#111", bgcolor="rgba(0,0,0,0)"), height=250, margin=dict(l=0,r=0,t=0,b=0))
-    st.plotly_chart(fig, use_container_width=True)
+        # --- EXECUTIVE VIEW ---
+        st.markdown(f"""<div class="vip-report">
+            <h2 style="margin:0;">{o_icao} ➔ {d_icao}</h2>
+            <p><b>DEP Status:</b> {st_o} | <b>ARR Status:</b> {st_d}</p>
+            <p style="font-size:0.9em; color:#444;">Mission assessment completed at {datetime.utcnow().strftime('%H:%MZ')}</p>
+        </div>""", unsafe_allow_html=True)
 
-    def eval_r(w):
-        v = w.get("visibility", {}).get("miles_float", 10)
-        wd = w.get("wind", {}).get("speed_kts", 0)
-        raw = w.get("raw_text", "").upper()
-        crit = (v < 3 or wd > 20 or any(x in raw for x in ["TS", "SN", "FG"]))
-        return crit, v, wd
-
-    r_o, v_o, w_o = eval_r(wx_o)
-    r_d, v_d, w_d = eval_r(wx_d)
-
-    if tipo == "Executive":
-        st.markdown(f'<div class="executive-card"><h3>{info_o["n"]} to {info_d["n"]}</h3><p>Departure: {"Alert" if r_o else "Stable"}</p><p>Arrival: {"Alert" if r_d else "Stable"}</p></div>', unsafe_allow_html=True)
-    else:
+        # --- TECHNICAL VIEW ---
         c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(f'<div class="tech-card-origin"><b>{info_o["n"]}</b><div class="raw-code">{wx_o["raw_text"]}</div><p>Vis: {v_o}SM | Wind: {w_o}KT</p></div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'<div class="tech-card-dest"><b>{info_d["n"]}</b><div class="raw-code">{wx_d["raw_text"]}</div><p>Vis: {v_d}SM | Wind: {w_d}KT</p></div>', unsafe_allow_html=True)
+        for col, icao, stt, w, v, wd, ce, color in zip([c1, c2], [o_icao, d_icao], [st_o, st_d], [w_o, w_d], [v_o, v_d], [wd_o, wd_d], [c_o, c_d], ["#00d4ff", "#a855f7"]):
+            with col:
+                st.markdown(f"""<div class="status-card" style="border-top: 5px solid {color}">
+                    <h3 style="margin:0; color:{color};">{icao} Assessment</h3>
+                    <div class="raw">{w["raw_text"]}</div>
+                    <p style="margin:10px 0 0 0; font-size:0.85em;">
+                        <b>VIS:</b> {v}SM | <b>WIND:</b> {wd}KT | <b>CEIL:</b> {ce}FT<br>
+                        <b>OPS:</b> {stt}
+                    </p>
+                </div>""", unsafe_allow_html=True)
+    else: st.error("Check ICAO / API Limits")
+        
