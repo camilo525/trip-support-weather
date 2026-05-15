@@ -16,7 +16,7 @@ st.markdown("""
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         margin-bottom: 20px;
     }
-    .airport-label { color: #00d4ff; font-size: 0.85em; font-weight: bold; margin-bottom: 10px; }
+    .airport-label { color: #00d4ff; font-size: 0.85em; font-weight: bold; margin-bottom: 10px; line-height: 1.2; }
     .tech-card-origin { padding: 20px; border-radius: 15px; border: 2px solid #00d4ff; background-color: rgba(0, 212, 255, 0.05); margin-bottom: 20px; }
     .tech-card-dest { padding: 20px; border-radius: 15px; border: 2px solid #a855f7; background-color: rgba(168, 85, 247, 0.05); margin-bottom: 20px; }
     .raw-code { font-family: 'Courier New', monospace; color: #00ff00; background: transparent; font-size: 0.95em; line-height: 1.4; }
@@ -36,27 +36,36 @@ API_KEY = "1b89b9a703e34d8596a1b932c0d30a82"
 
 # --- LÓGICA DE DATOS ---
 def get_wx(icao, phase):
-    if not icao: return None
+    if not icao or len(icao) < 3: return None
     stype = "metar" if phase == "Flight Day (Live)" else "taf"
-    url = "https://api.checkwx.com/" + stype + "/" + icao + "/decoded"
+    url = f"https://api.checkwx.com/{stype}/{icao}/decoded"
     headers = {"X-API-Key": API_KEY}
     try:
-        r = requests.get(url, headers=headers)
+        r = requests.get(url, headers=headers, timeout=5)
         data = r.json()
         return data["data"][0] if data.get("results", 0) > 0 else None
     except: return None
 
 # --- SIDEBAR & FETCH ---
 st.sidebar.title("Trip Configuration")
-origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
-wx_org = get_wx(origin_icao, "Flight Day (Live)") # Fetch rápido para el nombre
-if wx_org:
-    st.sidebar.markdown(f'<div class="airport-label">📍 {wx_org["station"]["name"]}<br>🏙️ {wx_org["station"]["city"]}</div>', unsafe_allow_html=True)
 
+# ORIGIN
+origin_icao = st.sidebar.text_input("DEPARTURE ICAO", value="KTEB").upper()
+wx_org = get_wx(origin_icao, "Flight Day (Live)")
+if wx_org:
+    # Uso de .get() para evitar KeyError
+    name_o = wx_org.get("station", {}).get("name", origin_icao)
+    city_o = wx_org.get("station", {}).get("city", "Unknown City")
+    st.sidebar.markdown(f'<div class="airport-label">📍 {name_o}<br>🏙️ {city_o}</div>', unsafe_allow_html=True)
+
+# DESTINATION
 destination_icao = st.sidebar.text_input("ARRIVAL ICAO", value="KOPF").upper()
-wx_dst = get_wx(destination_icao, "Flight Day (Live)") # Fetch rápido para el nombre
+wx_dst = get_wx(destination_icao, "Flight Day (Live)")
 if wx_dst:
-    st.sidebar.markdown(f'<div class="airport-label">📍 {wx_dst["station"]["name"]}<br>🏙️ {wx_dst["station"]["city"]}</div>', unsafe_allow_html=True)
+    # Uso de .get() para evitar KeyError
+    name_d = wx_dst.get("station", {}).get("name", destination_icao)
+    city_d = wx_dst.get("station", {}).get("city", "Unknown City")
+    st.sidebar.markdown(f'<div class="airport-label">📍 {name_d}<br>🏙️ {city_d}</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
 etd = st.sidebar.text_input("ETD (UTC)", value="12:00")
@@ -69,16 +78,62 @@ col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image(LOGO_UP_LEFT, width=250)
 with col_title: st.markdown('<div class="header-style">Flight Support Team | Trip Assessment</div>', unsafe_allow_html=True)
 
+# --- LÓGICA AUXILIAR ---
+def generate_client_text(wx, icao, type="dep"):
+    raw = wx.get("raw_text", "").upper()
+    vis = wx.get("visibility", {}).get("miles_float", 10)
+    crit = any(x in raw for x in ["TS", "SN", "FG", "DZ", "RA", "SQ"]) or vis < 3
+    if type == "dep":
+        return f"Weather analysis for departure from <b>{icao}</b> is " + ("unstable. Evaluating windows." if crit else "ideal. Stable window confirmed.")
+    return f"Arrival forecast for <b>{icao}</b> is " + ("under monitoring due to activity." if crit else "favorable. Seamless arrival reported.")
+
+def get_coords(wx):
+    try:
+        c = wx.get('station', {}).get('geometry', {}).get('coordinates', [None, None])
+        return c[1], c[0]
+    except: return None, None
+
 # --- EJECUCIÓN PRINCIPAL ---
 if st.button("Run Mission Assessment"):
-    if wx_org and wx_dst:
-        # Aquí va el código del mapa que ya tienes...
-        # (Omitido por brevedad, pero mantenlo igual)
-        
+    # Re-fetch con la fase seleccionada para el reporte real
+    wx_data_org = get_wx(origin_icao, fase)
+    wx_data_dst = get_wx(destination_icao, fase)
+
+    if wx_data_org and wx_data_dst:
+        # MAPA
+        o_lat, o_lon = get_coords(wx_data_org)
+        d_lat, d_lon = get_coords(wx_data_dst)
+        if o_lat and d_lat:
+            fig = go.Figure(go.Scattergeo(
+                lon=[o_lon, d_lon], lat=[o_lat, d_lat],
+                mode='lines+markers', line=dict(width=2, color='#00d4ff'),
+                marker=dict(size=10, color=['#00d4ff', '#a855f7'])
+            ))
+            fig.update_layout(geo=dict(showland=True, landcolor="#0a0a0a", bgcolor="rgba(0,0,0,0)"), 
+                              margin=dict(l=0, r=0, t=0, b=0), height=400, paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig, use_container_width=True)
+
         if tipo_reporte == "Executive (Client)":
-            # MEJORA: Incluir nombres completos en el reporte ejecutivo
-            exec_html = '<div class="executive-card">'
-            exec_html += '<h2 style="color:#005fcc; margin:0;">' + wx_org["station"]["name"] + ' ➔ ' + wx_dst["station"]["name"] + '</h2>'
-            exec_html += '<p style="color:#666; font-size:0.9em;">' + wx_org["station"]["city"] + ' to ' + wx_dst["station"]["city"] + '</p><hr>'
-            # ... resto de tu lógica de mensajes de clima
+            name_o_full = wx_data_org.get("station", {}).get("name", origin_icao)
+            name_d_full = wx_data_dst.get("station", {}).get("name", destination_icao)
+            
+            exec_html = f'<div class="executive-card"><h2 style="color:#005fcc; margin:0;">{name_o_full} ➔ {name_d_full}</h2>'
+            exec_html += f'<p><b>Departure:</b> {generate_client_text(wx_data_org, origin_icao, "dep")}</p>'
+            exec_html += f'<p><b>Arrival:</b> {generate_client_text(wx_data_dst, destination_icao, "arr")}</p></div>'
             st.markdown(exec_html, unsafe_allow_html=True)
+        else:
+            # Reporte Técnico (se mantiene tu lógica)
+            c1, c2 = st.columns(2)
+            for col, wx, icao, time, color, css in zip([c1, c2], [wx_data_org, wx_data_dst], [origin_icao, destination_icao], [etd, eta], ["#00d4ff", "#a855f7"], ["tech-card-origin", "tech-card-dest"]):
+                with col:
+                    vis = wx.get("visibility", {}).get("miles_float", 10)
+                    status = '🔴 ALERT' if (any(x in wx.get("raw_text", "").upper() for x in ["TS", "SN", "FG", "SQ"]) or vis < 3) else '🟢 STABLE'
+                    st.markdown(f'<div class="{css}"><h4 style="color:{color};">{icao} @ {time}Z</h4><p class="raw-code">{wx["raw_text"]}</p><hr style="border:0.5px solid #333;"><p><b>Vis:</b> {vis} SM | <b>Status:</b> {status}</p></div>', unsafe_allow_html=True)
+    else:
+        st.error("ICAO not found or API error. Check codes.")
+
+# --- FOOTER ---
+footer = f'<div class="footer-container"><img src="{LOGO_BOTTOM_CENTER}" width="160">'
+footer += f'<p style="color:#555; font-size:0.8em; margin-top:10px;">Dir. Operations & Standards</p>'
+footer += f'<p style="color:#333; font-size:0.7em;">SYSTEM TIME: {datetime.utcnow().strftime("%H:%M")}Z</p></div>'
+st.markdown(footer, unsafe_allow_html=True)
